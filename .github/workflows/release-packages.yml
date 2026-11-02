@@ -78,7 +78,7 @@ jobs:
             gh release create "$TAG" \
               --verify-tag \
               --generate-notes \
-              --title "Brasil Eleitoral DataLab $TAG" \
+              --title "DATALAB-BR $TAG" \
               $PRERELEASE_FLAG
           fi
 
@@ -132,7 +132,7 @@ jobs:
             ${{ steps.image.outputs.name }}:${{ needs.prepare-release.outputs.tag }}
             ${{ steps.image.outputs.name }}:latest
           labels: |
-            org.opencontainers.image.title=Brasil Eleitoral DataLab - ${{ matrix.name }}
+            org.opencontainers.image.title=DATALAB-BR - ${{ matrix.name }}
             org.opencontainers.image.description=Brazilian electoral open-data platform
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ needs.prepare-release.outputs.tag }}
