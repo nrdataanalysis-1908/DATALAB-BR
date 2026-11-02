@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Brasil Eleitoral DataLab",
+  title: "DATALAB-BR",
   description: "Catálogo público e análise reproduzível de dados eleitorais brasileiros.",
 };
 
