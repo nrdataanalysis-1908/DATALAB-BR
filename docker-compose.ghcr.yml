@@ -1,6 +1,6 @@
 services:
   api:
-    image: ghcr.io/nrdataanalysis-1908/brasil-eleitoral-datalab-api:${IMAGE_TAG:-v0.1.0-alpha.2}
+    image: ghcr.io/nrdataanalysis-1908/datalab-br-api:${IMAGE_TAG:-v0.1.0-alpha.2}
     ports:
       - "3001:3001"
     volumes:
@@ -13,7 +13,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: ghcr.io/nrdataanalysis-1908/brasil-eleitoral-datalab-web:${IMAGE_TAG:-v0.1.0-alpha.2}
+    image: ghcr.io/nrdataanalysis-1908/datalab-br-web:${IMAGE_TAG:-v0.1.0-alpha.2}
     ports:
       - "3000:3000"
     environment:
@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
 
   analytics:
-    image: ghcr.io/nrdataanalysis-1908/brasil-eleitoral-datalab-analytics:${IMAGE_TAG:-v0.1.0-alpha.2}
+    image: ghcr.io/nrdataanalysis-1908/datalab-br-analytics:${IMAGE_TAG:-v0.1.0-alpha.2}
     ports:
       - "8501:8501"
     volumes:

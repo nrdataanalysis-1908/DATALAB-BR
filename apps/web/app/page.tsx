@@ -81,10 +81,10 @@ export default function Home() {
       <div className="side-bottom"><span className="pulse"/> SISTEMA DE DADOS PÚBLICOS <small>BRASIL · TSE</small></div>
     </aside>
     <div className="main-area">
-      <header className="topbar"><div><span className="crumb">NR TECH / </span> BRASIL ELEITORAL DATALAB</div><div className="live"><i/> CATÁLOGO {catalog?.generated?"CARREGADO":"EM SINCRONIZAÇÃO"}</div></header>
+      <header className="topbar"><div><span className="crumb">NR TECH / </span> DATALAB-BR</div><div className="live"><i/> CATÁLOGO {catalog?.generated?"CARREGADO":"EM SINCRONIZAÇÃO"}</div></header>
       <section className="hero">
         <div><div className="eyebrow">INTELLIGENCE PLATFORM <span> / 001</span></div>
-          <h1>BRASIL <em>ELEITORAL</em><br/>DATALAB<span className="dot">.</span></h1>
+          <h1>DATA <em>INTELLIGENCE</em><br/>LAB<span className="dot">.</span></h1>
           <p>Uma visão orientada a dados sobre o ecossistema eleitoral brasileiro.<br/>Engenharia, transparência e inteligência analítica.</p>
           <div className="hero-tags"><span>DATA ENGINEERING</span><span>OPEN GOVERNMENT</span><span>ANALYTICS</span></div>
         </div>

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="Brasil Eleitoral DataLab — engenharia e inteligência de dados eleitorais" width="100%">
+  <img src="docs/assets/banner.svg" alt="DATALAB-BR — engenharia e inteligência de dados eleitorais" width="100%">
 </p>
 
 <p align="center">
@@ -10,7 +10,7 @@
   <a href="https://img.shields.io/badge/Source-TSE-168bd0"><img src="https://img.shields.io/badge/Source-TSE-0B6E99" alt="TSE"></a>
 </p>
 
-# Brasil Eleitoral DataLab
+# DATALAB-BR
 
 Laboratório aberto de engenharia, auditoria e análise de dados eleitorais brasileiros. O projeto organiza fontes públicas, constrói pipelines reproduzíveis e prepara dados para exploração analítica com rastreabilidade da origem à publicação.
 
@@ -40,7 +40,7 @@ Laboratório aberto de engenharia, auditoria e análise de dados eleitorais bras
 
 ## Visão geral
 
-O Brasil Eleitoral DataLab foi concebido como uma plataforma modular para trabalhar com diferentes domínios do ecossistema eleitoral: resultados, candidaturas, eleitorado, financiamento, pesquisas, boletins de urna, totalização e geografia eleitoral.
+O DATALAB-BR foi concebido como uma plataforma modular para trabalhar com diferentes domínios do ecossistema eleitoral: resultados, candidaturas, eleitorado, financiamento, pesquisas, boletins de urna, totalização e geografia eleitoral.
 
 O foco inicial é construir uma fundação confiável:
 
@@ -95,7 +95,7 @@ A aplicação abre em `http://localhost:8501`. A descoberta exige acesso à inte
 ## Arquitetura
 
 <p align="center">
-  <img src="docs/assets/architecture.svg" alt="Arquitetura lógica do Brasil Eleitoral DataLab, da fonte aos consumidores analíticos" width="100%">
+  <img src="docs/assets/architecture.svg" alt="Arquitetura lógica do DATALAB-BR, da fonte aos consumidores analíticos" width="100%">
 </p>
 
 | Camada | Implementação | Responsabilidade |
@@ -168,8 +168,8 @@ O contrato `contracts/tse/election-results.v1.json` representa um schema de dest
 ### Clonar o repositório
 
 ```bash
-git clone https://github.com/nrdataanalysis-1908/brasil-eleitoral-datalab.git
-cd brasil-eleitoral-datalab
+git clone https://github.com/nrdataanalysis-1908/DATALAB-BR.git
+cd DATALAB-BR
 python -m venv .venv
 ```
 
@@ -239,7 +239,7 @@ Consulte [docs/development-stack.md](docs/development-stack.md) para a composiç
 ## Estrutura do repositório
 
 ```text
-brasil-eleitoral-datalab/
+DATALAB-BR/
 ├── apps/
 │   ├── web/                    # Next.js / TypeScript
 │   └── analytics/              # Painel Streamlit e relatório HTML complementar
