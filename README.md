@@ -305,6 +305,7 @@ DATALAB-BR/
 - [Contratos de dados](docs/data-contracts.md)
 - [Pipeline Medallion](docs/medallion-pipeline.md)
 - [Operação e observabilidade](docs/operations.md)
+- [Quality gates de ingestão e evidências](docs/quality-gates-ingestion.md)
 - [Stack de desenvolvimento](docs/development-stack.md)
 - [Execução das imagens publicadas no GHCR](docs/ghcr-deployment.md)
 - [Aplicação Streamlit](docs/streamlit.md)
