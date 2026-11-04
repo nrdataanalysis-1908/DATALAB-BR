@@ -1,6 +1,7 @@
 """Safe ZIP extraction for untrusted public datasets."""
 from __future__ import annotations
 
+import math
 import os
 import shutil
 import stat
@@ -65,8 +66,12 @@ def extract_zip(
 ) -> dict[str, object]:
     """Validate and extract an archive into a new directory using staging + rename."""
     archive_path, destination = Path(archive_path), Path(destination)
-    if min(max_entries, max_file_size, max_total_size) < 1 or max_compression_ratio <= 0:
-        raise ValueError("Extraction limits must be positive")
+    try:
+        valid_compression_ratio = math.isfinite(max_compression_ratio) and max_compression_ratio > 0
+    except TypeError:
+        valid_compression_ratio = False
+    if min(max_entries, max_file_size, max_total_size) < 1 or not valid_compression_ratio:
+        raise ValueError("Extraction limits must be positive and compression ratio finite")
     if destination.exists():
         raise FileExistsError(f"Destination already exists: {destination}")
     destination.parent.mkdir(parents=True, exist_ok=True)
