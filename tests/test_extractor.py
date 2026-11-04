@@ -48,5 +48,16 @@ class SafeZipExtractionTests(unittest.TestCase):
                 extract_zip(archive, root / "out")
 
 
+    def test_rejects_non_finite_compression_ratio_limits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = self._archive(root, [("a.txt", "a")])
+            for ratio in (float("nan"), float("inf"), float("-inf"), 0):
+                with self.subTest(ratio=ratio):
+                    with self.assertRaises(ValueError):
+                        extract_zip(archive, root / f"out-{str(ratio)}",
+                                    max_compression_ratio=ratio)
+
+
 if __name__ == "__main__":
     unittest.main()
