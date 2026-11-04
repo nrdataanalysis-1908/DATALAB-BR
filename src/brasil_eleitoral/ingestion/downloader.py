@@ -112,24 +112,33 @@ def download_resource(
             with urlopen(request, timeout=timeout) as response:
                 status = getattr(response, "status", response.getcode())
                 etag = response.headers.get("ETag")
-                if offset and status == 206:
-                    content_range = response.headers.get("Content-Range", "")
-                    if not content_range.startswith(f"bytes {offset}-"):
-                        raise DownloadError(f"Invalid Content-Range while resuming: {content_range!r}")
-                    mode = "ab"
-                else:
-                    # A 200 response means the server ignored Range or the
-                    # validator changed: discard the old partial and restart.
-                    offset = 0
-                    mode = "wb"
                 total_header = response.headers.get("Content-Length")
                 expected_total = None
-                if total_header and total_header.isdigit():
-                    expected_total = offset + int(total_header)
-                if mode == "wb":
+                if offset and status == 206:
+                    content_range = response.headers.get("Content-Range", "")
+                    match = re.fullmatch(r"bytes (\\d+)-(\\d+)/(\\d+)", content_range.strip())
+                    if not match:
+                        raise DownloadError(f"Invalid Content-Range while resuming: {content_range!r}")
+                    range_start, range_end, range_total = map(int, match.groups())
+                    range_size = range_end - range_start + 1
+                    if range_start != offset or range_end < range_start or range_end + 1 != range_total:
+                        raise DownloadError(f"Incomplete or inconsistent Content-Range: {content_range!r}")
+                    if total_header and (not total_header.isdigit() or int(total_header) != range_size):
+                        raise DownloadError("Content-Length does not match the resumed byte range")
+                    if not etag or etag != state.get("etag"):
+                        raise DownloadError("ETag missing or changed during resumed download")
+                    expected_total = range_total
+                    mode = "ab"
+                elif status == 200:
+                    # A full response restarts the transfer, even if a Range
+                    # request was sent and the server ignored it.
+                    offset = 0
+                    mode = "wb"
+                    if total_header and total_header.isdigit():
+                        expected_total = int(total_header)
                     state = {"url": url, "etag": etag, "last_modified": response.headers.get("Last-Modified")}
-                elif etag and state.get("etag") and etag != state["etag"]:
-                    raise DownloadError("ETag changed during resumed download")
+                else:
+                    raise DownloadError(f"Unexpected HTTP status for resource download: {status}")
                 _atomic_json(state_path, state)
                 with partial.open(mode) as output:
                     while True:
