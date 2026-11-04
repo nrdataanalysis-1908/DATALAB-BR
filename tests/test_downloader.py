@@ -120,5 +120,30 @@ class DownloaderTests(unittest.TestCase):
             self.assertFalse(target.exists())
 
 
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_checksum_failure_forces_clean_transfer_on_next_run(self, urlopen):
+        urlopen.side_effect = [
+            FakeResponse(b"bad", headers={"Content-Length": "3", "ETag": '"v1"'}),
+            FakeResponse(b"good", headers={"Content-Length": "4", "ETag": '"v2"'}),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "resource.bin"
+            with self.assertRaises(DownloadError):
+                download_resource(
+                    "https://example.test/data", target, expected_checksum=hashlib.sha256(b"good").hexdigest()
+                )
+            partial = target.with_name(target.name + ".part")
+            state = partial.with_name(partial.name + ".json")
+            self.assertTrue(partial.exists())
+            self.assertFalse(state.exists())
+
+            result = download_resource(
+                "https://example.test/data", target, expected_checksum=hashlib.sha256(b"good").hexdigest()
+            )
+            self.assertEqual(target.read_bytes(), b"good")
+            self.assertEqual(result["status"], "verified")
+            self.assertEqual(urlopen.call_count, 2)
+
+
 if __name__ == "__main__":
     unittest.main()
