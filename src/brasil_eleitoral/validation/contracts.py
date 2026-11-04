@@ -62,8 +62,23 @@ _TYPE_CHECKS = {
 
 def validate_records(records: Iterable[dict[str, Any]], contract: DataContract) -> ValidationReport:
     """Validate required fields, primitive types, domains, row counts and key uniqueness."""
-    if contract.version < 1 or contract.minimum_rows < 0:
-        raise ValueError("Contract version and minimum_rows must be positive/non-negative")
+    if (
+        not isinstance(contract.version, int) or isinstance(contract.version, bool)
+        or contract.version < 1
+        or not isinstance(contract.minimum_rows, int)
+        or isinstance(contract.minimum_rows, bool)
+        or contract.minimum_rows < 0
+    ):
+        raise ValueError("Contract version must be positive and minimum_rows non-negative")
+    if contract.maximum_rows is not None:
+        if (
+            not isinstance(contract.maximum_rows, int)
+            or isinstance(contract.maximum_rows, bool)
+            or contract.maximum_rows < 0
+        ):
+            raise ValueError("maximum_rows must be a non-negative integer or None")
+        if contract.maximum_rows < contract.minimum_rows:
+            raise ValueError("maximum_rows cannot be lower than minimum_rows")
     names = [item.name for item in contract.fields]
     if len(names) != len(set(names)):
         raise ValueError("Contract contains duplicate field names")
