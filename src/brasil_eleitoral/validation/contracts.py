@@ -124,12 +124,23 @@ def validate_csv(path: Path, contract: DataContract, *, delimiter: str = ",",
         )
         if header_errors:
             return ValidationReport(contract.name, 0, header_errors)
-        records = (
-            {key: _parse_csv_value(value, next(f.dtype for f in contract.fields if f.name == key))
-             for key, value in row.items() if key is not None}
-            for row in reader
-        )
-        return validate_records(records, contract)
+        extra_value_errors: list[dict[str, Any]] = []
+
+        def iter_records():
+            for row_number, row in enumerate(reader, start=2):
+                if None in row:
+                    extra_value_errors.append({
+                        "row": row_number, "field": None, "code": "extra_values",
+                        "count": len(row[None]),
+                    })
+                yield {
+                    item.name: _parse_csv_value(row.get(item.name), item.dtype)
+                    for item in contract.fields
+                }
+
+        report = validate_records(iter_records(), contract)
+        report.errors.extend(extra_value_errors)
+        return report
 
 
 def _parse_csv_value(value: str | None, dtype: str) -> Any:
