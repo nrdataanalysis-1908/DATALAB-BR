@@ -93,5 +93,32 @@ class DownloaderTests(unittest.TestCase):
             self.assertEqual(result["failure_count"], 1)
 
 
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_resume_rejects_inconsistent_content_range(self, urlopen):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "data.bin"
+            partial = target.with_name(target.name + ".part")
+            partial.write_bytes(b"abcd")
+            partial.with_name(partial.name + ".json").write_text(json.dumps({
+                "url": "https://example.test/data", "etag": '"v1"'
+            }))
+            urlopen.return_value = FakeResponse(b"efghij", status=206, headers={
+                "Content-Range": "bytes 3-8/9", "Content-Length": "6", "ETag": '"v1"'
+            })
+            with self.assertRaises(DownloadError):
+                download_resource("https://example.test/data", target)
+
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_fresh_download_rejects_unsolicited_partial_response(self, urlopen):
+        urlopen.return_value = FakeResponse(b"partial", status=206, headers={
+            "Content-Range": "bytes 0-6/20", "Content-Length": "7", "ETag": '"v1"'
+        })
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "data.bin"
+            with self.assertRaises(DownloadError):
+                download_resource("https://example.test/data", target)
+            self.assertFalse(target.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
