@@ -116,7 +116,7 @@ def download_resource(
                 expected_total = None
                 if offset and status == 206:
                     content_range = response.headers.get("Content-Range", "")
-                    match = re.fullmatch(r"bytes (\\d+)-(\\d+)/(\\d+)", content_range.strip())
+                    match = re.fullmatch(r"bytes (\d+)-(\d+)/(\d+)", content_range.strip())
                     if not match:
                         raise DownloadError(f"Invalid Content-Range while resuming: {content_range!r}")
                     range_start, range_end, range_total = map(int, match.groups())
