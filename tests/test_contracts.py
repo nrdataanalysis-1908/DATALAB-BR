@@ -99,5 +99,17 @@ class ContractValidationTests(unittest.TestCase):
             self.assertEqual(error["count"], 1)
 
 
+    def test_number_contract_rejects_nan_and_infinity(self):
+        contract = DataContract(
+            name="finite_metrics", version=1,
+            fields=(FieldContract("metric", "number"),),
+        )
+        for value in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=value):
+                report = validate_records([{"metric": value}], contract)
+                self.assertFalse(report.valid)
+                self.assertIn("invalid_type", {error["code"] for error in report.errors})
+
+
 if __name__ == "__main__":
     unittest.main()
