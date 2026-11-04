@@ -62,5 +62,28 @@ class ContractValidationTests(unittest.TestCase):
             self.assertEqual(load_contract(path).name, "tiny")
 
 
+    def test_csv_rejects_unexpected_columns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "results.csv"
+            path.write_text(
+                "year,candidate_id,votes,status,unreviewed\n2022,123,100,ELECTED,x\n",
+                encoding="utf-8",
+            )
+            report = validate_csv(path, self.contract)
+            self.assertFalse(report.valid)
+            self.assertIn("unexpected_column", {error["code"] for error in report.errors})
+
+    def test_csv_rejects_duplicate_headers_after_csv_parsing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "results.csv"
+            path.write_text(
+                "year,candidate_id,votes,status,status\n2022,123,100,ELECTED,NOT_ELECTED\n",
+                encoding="utf-8",
+            )
+            report = validate_csv(path, self.contract)
+            self.assertFalse(report.valid)
+            self.assertIn("duplicate_column", {error["code"] for error in report.errors})
+
+
 if __name__ == "__main__":
     unittest.main()
