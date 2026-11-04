@@ -85,5 +85,19 @@ class ContractValidationTests(unittest.TestCase):
             self.assertIn("duplicate_column", {error["code"] for error in report.errors})
 
 
+    def test_csv_reports_surplus_values_in_data_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "results.csv"
+            path.write_text(
+                "year,candidate_id,votes,status\n2022,123,100,ELECTED,unexpected\n",
+                encoding="utf-8",
+            )
+            report = validate_csv(path, self.contract)
+            self.assertFalse(report.valid)
+            error = next(error for error in report.errors if error["code"] == "extra_values")
+            self.assertEqual(error["row"], 2)
+            self.assertEqual(error["count"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
