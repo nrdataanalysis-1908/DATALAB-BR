@@ -111,5 +111,26 @@ class ContractValidationTests(unittest.TestCase):
                 self.assertIn("invalid_type", {error["code"] for error in report.errors})
 
 
+    def test_contract_rejects_inconsistent_row_bounds(self):
+        for maximum in (-1, 0):
+            with self.subTest(maximum=maximum):
+                contract = DataContract(
+                    name="bounded", version=1,
+                    fields=(FieldContract("id", "string"),),
+                    minimum_rows=1, maximum_rows=maximum,
+                )
+                with self.assertRaises(ValueError):
+                    validate_records([], contract)
+
+    def test_contract_rejects_non_integer_row_bounds(self):
+        contract = DataContract(
+            name="bounded", version=1,
+            fields=(FieldContract("id", "string"),),
+            minimum_rows=1, maximum_rows=1.5,
+        )
+        with self.assertRaises(ValueError):
+            validate_records([], contract)
+
+
 if __name__ == "__main__":
     unittest.main()
