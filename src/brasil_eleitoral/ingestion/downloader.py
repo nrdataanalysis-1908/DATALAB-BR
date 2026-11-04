@@ -153,6 +153,9 @@ def download_resource(
                 raise DownloadError(f"Truncated response: expected {expected_total} bytes, received {actual_size}")
             actual_checksum = _digest(partial, checksum_algorithm)
             if expected_checksum and actual_checksum.lower() != expected_checksum.lower():
+                # Keep the bytes for diagnosis, but invalidate their resume
+                # metadata so a later invocation starts from a clean transfer.
+                state_path.unlink(missing_ok=True)
                 raise DownloadError(
                     f"Checksum mismatch ({checksum_algorithm}): expected {expected_checksum}, got {actual_checksum}"
                 )
