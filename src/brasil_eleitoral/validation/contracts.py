@@ -115,10 +115,15 @@ def validate_csv(path: Path, contract: DataContract, *, delimiter: str = ",",
         reader = csv.DictReader(stream, delimiter=delimiter)
         actual = reader.fieldnames or []
         missing = sorted(set(expected) - set(actual))
-        if missing:
-            return ValidationReport(contract.name, 0, [
-                {"row": 0, "field": name, "code": "missing_column"} for name in missing
-            ])
+        unexpected = sorted(set(actual) - set(expected))
+        duplicates = sorted({name for name in actual if actual.count(name) > 1})
+        header_errors = (
+            [{"row": 0, "field": name, "code": "missing_column"} for name in missing]
+            + [{"row": 0, "field": name, "code": "unexpected_column"} for name in unexpected]
+            + [{"row": 0, "field": name, "code": "duplicate_column"} for name in duplicates]
+        )
+        if header_errors:
+            return ValidationReport(contract.name, 0, header_errors)
         records = (
             {key: _parse_csv_value(value, next(f.dtype for f in contract.fields if f.name == key))
              for key, value in row.items() if key is not None}
