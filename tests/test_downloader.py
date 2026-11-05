@@ -229,5 +229,24 @@ class DownloaderTests(unittest.TestCase):
                 )
         urlopen.assert_not_called()
 
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_manifest_prevents_cross_run_filename_overwrite(self, urlopen):
+        urlopen.side_effect = [
+            FakeResponse(b"original", headers={"Content-Length": "8"}),
+            FakeResponse(b"replacement", headers={"Content-Length": "11"}),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            download_resources([
+                {"id": "official", "name": "dataset.csv", "url": "https://example.test/one"},
+            ], output)
+            result = download_resources([
+                {"id": "other", "name": "dataset.csv", "url": "https://example.test/two"},
+            ], output)
+            self.assertEqual(result["resource_count"], 1)
+            self.assertEqual(result["failure_count"], 1)
+            self.assertEqual((output / "dataset.csv").read_bytes(), b"original")
+            self.assertEqual(urlopen.call_count, 1)
+
 if __name__ == "__main__":
     unittest.main()
