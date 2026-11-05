@@ -145,5 +145,19 @@ class DownloaderTests(unittest.TestCase):
             self.assertEqual(urlopen.call_count, 2)
 
 
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_rejects_two_resources_that_sanitize_to_the_same_filename(self, urlopen):
+        urlopen.return_value = FakeResponse(b"first", headers={"Content-Length": "5"})
+        with tempfile.TemporaryDirectory() as tmp:
+            result = download_resources([
+                {"id": "r1", "name": "../dataset.csv", "url": "https://example.test/one"},
+                {"id": "r2", "name": "dataset.csv", "url": "https://example.test/two"},
+            ], Path(tmp))
+            self.assertEqual(result["resource_count"], 1)
+            self.assertEqual(result["failure_count"], 1)
+            self.assertEqual(result["failures"][0]["resource_id"], "r2")
+            self.assertEqual(urlopen.call_count, 1)
+            self.assertEqual((Path(tmp) / "dataset.csv").read_bytes(), b"first")
+
 if __name__ == "__main__":
     unittest.main()
