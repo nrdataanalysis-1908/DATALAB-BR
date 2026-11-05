@@ -173,5 +173,15 @@ class ContractValidationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "allowed_values must be an array"):
                 load_contract(path)
 
+    def test_load_contract_rejects_boolean_row_bounds(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "contract.json"
+            base = {"name": "strict", "version": 1, "fields": [{"name": "id", "type": "string"}]}
+            for key in ("minimum_rows", "maximum_rows"):
+                with self.subTest(key=key):
+                    path.write_text(json.dumps({**base, key: True}), encoding="utf-8")
+                    with self.assertRaises(ValueError):
+                        load_contract(path)
+
 if __name__ == "__main__":
     unittest.main()
