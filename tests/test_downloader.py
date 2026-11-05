@@ -248,5 +248,21 @@ class DownloaderTests(unittest.TestCase):
             self.assertEqual((output / "dataset.csv").read_bytes(), b"original")
             self.assertEqual(urlopen.call_count, 1)
 
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_manifest_allows_same_resource_to_refresh_its_file(self, urlopen):
+        urlopen.side_effect = [
+            FakeResponse(b"old", headers={"Content-Length": "3"}),
+            FakeResponse(b"newer", headers={"Content-Length": "5"}),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            for _ in range(2):
+                result = download_resources([
+                    {"id": "official", "name": "dataset.csv", "url": "https://example.test/data"},
+                ], output)
+                self.assertEqual(result["failure_count"], 0)
+            self.assertEqual((output / "dataset.csv").read_bytes(), b"newer")
+            self.assertEqual(urlopen.call_count, 2)
+
 if __name__ == "__main__":
     unittest.main()
