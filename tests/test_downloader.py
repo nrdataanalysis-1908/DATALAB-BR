@@ -215,5 +215,19 @@ class DownloaderTests(unittest.TestCase):
                         download_resource("https://example.test/data", target, **options)
         urlopen.assert_not_called()
 
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_checksum_configuration_is_validated_before_network_request(self, urlopen):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "data.bin"
+            with self.assertRaises(ValueError):
+                download_resource(
+                    "https://example.test/data", target, checksum_algorithm="unknown-hash"
+                )
+            with self.assertRaises(ValueError):
+                download_resource(
+                    "https://example.test/data", target, expected_checksum="not-a-digest"
+                )
+        urlopen.assert_not_called()
+
 if __name__ == "__main__":
     unittest.main()
