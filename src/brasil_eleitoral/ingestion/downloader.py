@@ -232,6 +232,12 @@ def download_resources(
             LOG.warning("Existing download manifest is invalid; a new manifest will be built")
     failures: list[dict[str, str]] = []
     claimed_filenames: dict[str, str] = {}
+    for existing_id, existing in entries.items():
+        existing_path = existing.get("path")
+        if existing_path:
+            path = Path(existing_path)
+            if path.parent.resolve() == output_dir.resolve():
+                claimed_filenames[path.name.casefold()] = existing_id
     seen_resource_ids: set[str] = set()
     manifest_resolved = manifest_path.resolve()
     for index, resource in enumerate(resources):
@@ -263,10 +269,11 @@ def download_resources(
             })
             continue
         filename_key = filename.casefold()
-        if filename_key in claimed_filenames:
+        owner = claimed_filenames.get(filename_key)
+        if owner is not None and owner != rid:
             failures.append({
                 "resource_id": rid,
-                "error": f"resource filename collides with {claimed_filenames[filename_key]}",
+                "error": f"resource filename collides with {owner}",
             })
             continue
         claimed_filenames[filename_key] = rid
