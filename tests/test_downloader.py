@@ -172,5 +172,17 @@ class DownloaderTests(unittest.TestCase):
             self.assertIn("collides", result["failures"][0]["error"])
             self.assertEqual(urlopen.call_count, 1)
 
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_resource_cannot_overwrite_download_manifest(self, urlopen):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = download_resources([
+                {"id": "manifest", "name": "manifest.json", "url": "https://example.test/data"},
+            ], Path(tmp))
+            manifest = json.loads((Path(tmp) / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(result["resource_count"], 0)
+            self.assertEqual(result["failure_count"], 1)
+            self.assertIn("conflicts with the download manifest", manifest["failures"][0]["error"])
+            urlopen.assert_not_called()
+
 if __name__ == "__main__":
     unittest.main()
