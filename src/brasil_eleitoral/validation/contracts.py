@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import json
+from collections import Counter
 import math
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -141,7 +142,7 @@ def validate_csv(path: Path, contract: DataContract, *, delimiter: str = ",",
         actual = reader.fieldnames or []
         missing = sorted(set(expected) - set(actual))
         unexpected = sorted(set(actual) - set(expected))
-        duplicates = sorted({name for name in actual if actual.count(name) > 1})
+        duplicates = sorted(name for name, count in Counter(actual).items() if count > 1)
         header_errors = (
             [{"row": 0, "field": name, "code": "missing_column"} for name in missing]
             + [{"row": 0, "field": name, "code": "unexpected_column"} for name in unexpected]
