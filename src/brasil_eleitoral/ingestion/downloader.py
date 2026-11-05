@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import random
 import re
@@ -82,8 +83,30 @@ def download_resource(
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise ValueError("Only absolute HTTP(S) resource URLs are supported")
-    if timeout <= 0 or retries < 0 or chunk_size < 1:
-        raise ValueError("timeout/chunk_size must be positive and retries non-negative")
+    if (
+        isinstance(timeout, bool) or not isinstance(timeout, (int, float))
+        or not math.isfinite(timeout) or timeout <= 0
+    ):
+        raise ValueError("timeout must be a finite positive number")
+    if isinstance(backoff, bool) or not isinstance(backoff, (int, float)) or not math.isfinite(backoff) or backoff < 0:
+        raise ValueError("backoff must be a finite non-negative number")
+    if isinstance(retries, bool) or not isinstance(retries, int) or retries < 0:
+        raise ValueError("retries must be a non-negative integer")
+    if isinstance(chunk_size, bool) or not isinstance(chunk_size, int) or chunk_size < 1:
+        raise ValueError("chunk_size must be a positive integer")
+    try:
+        checksum = hashlib.new(checksum_algorithm)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Unsupported checksum algorithm: {checksum_algorithm!r}") from exc
+    if checksum.digest_size <= 0:
+        raise ValueError("Variable-length checksum algorithms are not supported")
+    if expected_checksum is not None:
+        if (
+            not isinstance(expected_checksum, str)
+            or len(expected_checksum) != checksum.digest_size * 2
+            or not re.fullmatch(r"[0-9a-fA-F]+", expected_checksum)
+        ):
+            raise ValueError(f"expected_checksum must be a {checksum.digest_size * 2}-character hexadecimal digest")
     destination = Path(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
     partial = destination.with_name(destination.name + ".part")
