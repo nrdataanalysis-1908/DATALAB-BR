@@ -152,5 +152,16 @@ class ContractValidationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "nullable must be boolean"):
                 load_contract(path)
 
+    def test_load_contract_requires_primary_key_array(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "contract.json"
+            path.write_text(json.dumps({
+                "name": "strict", "version": 1,
+                "fields": [{"name": "id", "type": "string"}],
+                "primary_key": "id",
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "primary_key must be an array"):
+                load_contract(path)
+
 if __name__ == "__main__":
     unittest.main()
