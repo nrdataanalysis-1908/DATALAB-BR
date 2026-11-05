@@ -142,5 +142,15 @@ class ContractValidationTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         load_contract(path)
 
+    def test_load_contract_requires_boolean_nullable_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "contract.json"
+            path.write_text(json.dumps({
+                "name": "strict", "version": 1,
+                "fields": [{"name": "id", "type": "string", "nullable": "false"}],
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "nullable must be boolean"):
+                load_contract(path)
+
 if __name__ == "__main__":
     unittest.main()
