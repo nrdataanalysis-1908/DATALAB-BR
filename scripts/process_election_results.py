@@ -25,6 +25,7 @@ def main() -> int:
     parser.add_argument("--dimensions", nargs="+", required=True, help="Gold aggregation dimensions")
     parser.add_argument("--metric", default="votes")
     args = parser.parse_args()
+    print("DATALAB-BR | Desenvolvido por Nadison Roberto | NR TECH | © 2026")
 
     logger = get_logger()
     run_id = uuid.uuid4().hex
