@@ -184,5 +184,21 @@ class DownloaderTests(unittest.TestCase):
             self.assertIn("conflicts with the download manifest", manifest["failures"][0]["error"])
             urlopen.assert_not_called()
 
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_rejects_non_finite_timeout_and_backoff_before_request(self, urlopen):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "data.bin"
+            for options in (
+                {"timeout": float("nan")},
+                {"timeout": float("inf")},
+                {"backoff": float("nan")},
+                {"backoff": float("inf")},
+                {"backoff": -0.1},
+            ):
+                with self.subTest(options=options):
+                    with self.assertRaises(ValueError):
+                        download_resource("https://example.test/data", target, **options)
+        urlopen.assert_not_called()
+
 if __name__ == "__main__":
     unittest.main()
