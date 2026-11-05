@@ -19,6 +19,7 @@ def main() -> int:
     parser.add_argument("--retries", type=int, default=4)
     parser.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="INFO")
     args = parser.parse_args()
+    print("DATALAB-BR | Desenvolvido por Nadison Roberto | NR TECH | © 2026")
     logging.basicConfig(level=getattr(logging, args.log_level),
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     if not args.catalog.is_dir():
