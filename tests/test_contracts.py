@@ -132,5 +132,15 @@ class ContractValidationTests(unittest.TestCase):
             validate_records([], contract)
 
 
+    def test_load_contract_rejects_coerced_versions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "contract.json"
+            base = {"name": "strict", "fields": [{"name": "id", "type": "string"}]}
+            for version in (True, 1.5, "1", 0):
+                with self.subTest(version=version):
+                    path.write_text(json.dumps({**base, "version": version}), encoding="utf-8")
+                    with self.assertRaises(ValueError):
+                        load_contract(path)
+
 if __name__ == "__main__":
     unittest.main()
