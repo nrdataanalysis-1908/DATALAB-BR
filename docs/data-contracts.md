@@ -2,7 +2,7 @@
 
 Contracts are versioned JSON documents. Each field declares a primitive type, nullability and optional allowed domain. A contract can also enforce minimum/maximum row counts and composite primary-key uniqueness.
 
-The validation module uses only the Python standard library and streams CSV rows, so large source files do not need to be loaded entirely into memory.
+The validation module uses only the Python standard library and streams CSV rows, so large source files do not need to be loaded entirely into memory. Contract JSON is parsed strictly: version and row bounds must be integers, nullability must be boolean, and primary keys and allowed values must be arrays. Invalid declarations are rejected rather than silently coerced.
 
 ```bash
 python - <<'PY'
