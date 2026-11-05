@@ -208,16 +208,48 @@ def download_resources(
         except (OSError, json.JSONDecodeError, KeyError, TypeError):
             LOG.warning("Existing download manifest is invalid; a new manifest will be built")
     failures: list[dict[str, str]] = []
+    claimed_filenames: dict[str, str] = {}
+    seen_resource_ids: set[str] = set()
+    manifest_resolved = manifest_path.resolve()
     for index, resource in enumerate(resources):
+        if not isinstance(resource, dict):
+            failures.append({
+                "resource_id": f"resource-{index}",
+                "error": "resource metadata must be an object",
+            })
+            continue
         url = resource.get("url")
         rid = str(resource.get("id") or resource.get("name") or f"resource-{index}")
+        if rid in seen_resource_ids:
+            failures.append({"resource_id": rid, "error": "duplicate resource identifier"})
+            continue
+        seen_resource_ids.add(rid)
         if not url:
             failures.append({"resource_id": rid, "error": "missing URL"})
             continue
-        filename = _safe_filename(resource.get("name") or rid)
+        try:
+            filename = _safe_filename(resource.get("name") or rid)
+        except (TypeError, ValueError) as exc:
+            failures.append({"resource_id": rid, "error": str(exc)})
+            continue
+        target = output_dir / filename
+        if target.resolve() == manifest_resolved:
+            failures.append({
+                "resource_id": rid,
+                "error": "resource filename conflicts with the download manifest",
+            })
+            continue
+        filename_key = filename.casefold()
+        if filename_key in claimed_filenames:
+            failures.append({
+                "resource_id": rid,
+                "error": f"resource filename collides with {claimed_filenames[filename_key]}",
+            })
+            continue
+        claimed_filenames[filename_key] = rid
         try:
             record = download_resource(
-                url, output_dir / filename, resource_id=rid,
+                url, target, resource_id=rid,
                 expected_checksum=resource.get("expected_checksum"),
                 checksum_algorithm=resource.get("checksum_algorithm", "sha256"),
                 timeout=timeout, retries=retries,
