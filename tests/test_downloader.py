@@ -200,5 +200,20 @@ class DownloaderTests(unittest.TestCase):
                         download_resource("https://example.test/data", target, **options)
         urlopen.assert_not_called()
 
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_retry_count_and_chunk_size_must_be_integers(self, urlopen):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "data.bin"
+            for options in (
+                {"retries": True},
+                {"retries": 1.5},
+                {"chunk_size": True},
+                {"chunk_size": 1.5},
+            ):
+                with self.subTest(options=options):
+                    with self.assertRaises(ValueError):
+                        download_resource("https://example.test/data", target, **options)
+        urlopen.assert_not_called()
+
 if __name__ == "__main__":
     unittest.main()
