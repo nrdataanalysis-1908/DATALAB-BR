@@ -159,5 +159,18 @@ class DownloaderTests(unittest.TestCase):
             self.assertEqual(urlopen.call_count, 1)
             self.assertEqual((Path(tmp) / "dataset.csv").read_bytes(), b"first")
 
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_rejects_case_insensitive_filename_collisions(self, urlopen):
+        urlopen.return_value = FakeResponse(b"first", headers={"Content-Length": "5"})
+        with tempfile.TemporaryDirectory() as tmp:
+            result = download_resources([
+                {"id": "upper", "name": "Dataset.csv", "url": "https://example.test/one"},
+                {"id": "lower", "name": "dataset.csv", "url": "https://example.test/two"},
+            ], Path(tmp))
+            self.assertEqual(result["resource_count"], 1)
+            self.assertEqual(result["failure_count"], 1)
+            self.assertIn("collides", result["failures"][0]["error"])
+            self.assertEqual(urlopen.call_count, 1)
+
 if __name__ == "__main__":
     unittest.main()
