@@ -189,15 +189,56 @@ def _parse_csv_value(value: str | None, dtype: str) -> Any:
 
 
 def load_contract(path: Path) -> DataContract:
-    """Load a JSON contract definition."""
+    """Load a JSON contract definition without coercing malformed schema values."""
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("Contract document must be a JSON object")
+
+    name = payload.get("name")
+    version = payload.get("version")
+    fields_payload = payload.get("fields")
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("Contract name must be a non-empty string")
+    if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+        raise ValueError("Contract version must be a positive integer")
+    if not isinstance(fields_payload, list) or not fields_payload:
+        raise ValueError("Contract fields must be a non-empty array")
+
+    fields = []
+    for index, item in enumerate(fields_payload):
+        if not isinstance(item, dict):
+            raise ValueError(f"Contract field at index {index} must be an object")
+        field_name = item.get("name")
+        dtype = item.get("type")
+        nullable = item.get("nullable", False)
+        allowed_values = item.get("allowed_values", [])
+        if not isinstance(field_name, str) or not field_name.strip():
+            raise ValueError(f"Contract field at index {index} requires a non-empty name")
+        if not isinstance(dtype, str):
+            raise ValueError(f"Contract field {field_name!r} requires a string type")
+        if not isinstance(nullable, bool):
+            raise ValueError(f"Contract field {field_name!r} nullable must be boolean")
+        if not isinstance(allowed_values, list):
+            raise ValueError(f"Contract field {field_name!r} allowed_values must be an array")
+        fields.append(FieldContract(
+            name=field_name, dtype=dtype, nullable=nullable,
+            allowed_values=tuple(allowed_values),
+        ))
+
+    primary_key = payload.get("primary_key", [])
+    minimum_rows = payload.get("minimum_rows", 0)
+    maximum_rows = payload.get("maximum_rows")
+    if not isinstance(primary_key, list) or any(not isinstance(key, str) or not key for key in primary_key):
+        raise ValueError("Contract primary_key must be an array of non-empty strings")
+    if isinstance(minimum_rows, bool) or not isinstance(minimum_rows, int) or minimum_rows < 0:
+        raise ValueError("Contract minimum_rows must be a non-negative integer")
+    if maximum_rows is not None and (
+        isinstance(maximum_rows, bool) or not isinstance(maximum_rows, int) or maximum_rows < 0
+    ):
+        raise ValueError("Contract maximum_rows must be a non-negative integer or null")
+
     return DataContract(
-        name=payload["name"], version=int(payload["version"]),
-        fields=tuple(FieldContract(
-            name=item["name"], dtype=item["type"], nullable=bool(item.get("nullable", False)),
-            allowed_values=tuple(item.get("allowed_values", [])),
-        ) for item in payload["fields"]),
-        primary_key=tuple(payload.get("primary_key", [])),
-        minimum_rows=int(payload.get("minimum_rows", 0)),
-        maximum_rows=payload.get("maximum_rows"),
+        name=name, version=version, fields=tuple(fields),
+        primary_key=tuple(primary_key), minimum_rows=minimum_rows,
+        maximum_rows=maximum_rows,
     )
