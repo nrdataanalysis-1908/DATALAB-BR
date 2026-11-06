@@ -27,8 +27,12 @@ def _validated_members(archive: zipfile.ZipFile, *, max_entries: int,
         name = info.filename
         if not name or "\x00" in name or "\\" in name:
             raise ExtractionError(f"Unsafe ZIP member path: {name!r}")
+        canonical_name = name[:-1] if name.endswith("/") else name
+        raw_parts = canonical_name.split("/")
+        if not canonical_name or any(part in {"", ".", ".."} for part in raw_parts):
+            raise ExtractionError(f"Path traversal or non-canonical path: {name!r}")
         path = PurePosixPath(name)
-        if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        if path.is_absolute():
             raise ExtractionError(f"Path traversal or non-canonical path: {name!r}")
         if path.parts and ":" in path.parts[0]:
             raise ExtractionError(f"Drive-qualified path is not allowed: {name!r}")
@@ -66,12 +70,23 @@ def extract_zip(
 ) -> dict[str, object]:
     """Validate and extract an archive into a new directory using staging + rename."""
     archive_path, destination = Path(archive_path), Path(destination)
+    integer_limits = (max_entries, max_file_size, max_total_size)
+    if any(
+        isinstance(value, bool) or not isinstance(value, int) or value < 1
+        for value in integer_limits
+    ):
+        raise ValueError("Entry and size limits must be positive integers")
     try:
-        valid_compression_ratio = math.isfinite(max_compression_ratio) and max_compression_ratio > 0
-    except TypeError:
+        valid_compression_ratio = (
+            not isinstance(max_compression_ratio, bool)
+            and isinstance(max_compression_ratio, (int, float))
+            and math.isfinite(max_compression_ratio)
+            and max_compression_ratio > 0
+        )
+    except (OverflowError, TypeError):
         valid_compression_ratio = False
-    if min(max_entries, max_file_size, max_total_size) < 1 or not valid_compression_ratio:
-        raise ValueError("Extraction limits must be positive and compression ratio finite")
+    if not valid_compression_ratio:
+        raise ValueError("Compression ratio limit must be a finite positive number")
     if destination.exists():
         raise FileExistsError(f"Destination already exists: {destination}")
     destination.parent.mkdir(parents=True, exist_ok=True)

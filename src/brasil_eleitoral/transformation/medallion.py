@@ -157,9 +157,17 @@ def gold_aggregate_results(source: Path, destination: Path, *,
     totals: dict[tuple[str, ...], Decimal] = defaultdict(Decimal)
     with source.open("r", encoding=encoding, newline="") as stream:
         reader = csv.DictReader(stream)
-        if not reader.fieldnames or any(name not in reader.fieldnames for name in (*dimensions, metric)):
+        fieldnames = reader.fieldnames or []
+        if not fieldnames or any(not name for name in fieldnames):
+            raise MedallionError("Source CSV has a missing or empty header")
+        duplicates = sorted({name for name in fieldnames if fieldnames.count(name) > 1})
+        if duplicates:
+            raise MedallionError(f"Source CSV contains duplicate headers: {duplicates}")
+        if any(name not in fieldnames for name in (*dimensions, metric)):
             raise MedallionError("Source CSV is missing an aggregation column")
         for row_number, row in enumerate(reader, start=2):
+            if None in row:
+                raise MedallionError(f"Row {row_number} has more columns than the header")
             key = tuple((row.get(name) or "").strip() for name in dimensions)
             if any(not value for value in key):
                 raise MedallionError(f"Null aggregation dimension at row {row_number}")
