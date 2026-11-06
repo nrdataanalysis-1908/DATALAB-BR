@@ -27,8 +27,12 @@ def _validated_members(archive: zipfile.ZipFile, *, max_entries: int,
         name = info.filename
         if not name or "\x00" in name or "\\" in name:
             raise ExtractionError(f"Unsafe ZIP member path: {name!r}")
+        canonical_name = name[:-1] if name.endswith("/") else name
+        raw_parts = canonical_name.split("/")
+        if not canonical_name or any(part in {"", ".", ".."} for part in raw_parts):
+            raise ExtractionError(f"Path traversal or non-canonical path: {name!r}")
         path = PurePosixPath(name)
-        if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        if path.is_absolute():
             raise ExtractionError(f"Path traversal or non-canonical path: {name!r}")
         if path.parts and ":" in path.parts[0]:
             raise ExtractionError(f"Drive-qualified path is not allowed: {name!r}")
