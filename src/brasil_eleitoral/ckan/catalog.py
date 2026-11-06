@@ -45,19 +45,51 @@ def normalize_dataset(dataset: dict[str, Any], *, source_url: str, extracted_at:
         "url": dataset.get("url"), "resources": resources, "source": "Tribunal Superior Eleitoral",
         "source_url": source_url, "extracted_at": extracted_at}
 
+def _load_checkpoint(path: Path) -> dict[str, Any]:
+    default: dict[str, Any] = {"next_start": 0, "total": None, "seen": {}}
+    if not path.exists():
+        return default
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        LOG.warning("Ignoring invalid checkpoint %s: %s", path, exc)
+        return default
+
+    if not isinstance(loaded, dict):
+        LOG.warning("Ignoring checkpoint with an invalid root object: %s", path)
+        return default
+    next_start = loaded.get("next_start", 0)
+    total = loaded.get("total")
+    seen = loaded.get("seen")
+    valid = (
+        isinstance(next_start, int) and not isinstance(next_start, bool) and next_start >= 0
+        and (total is None or (
+            isinstance(total, int) and not isinstance(total, bool) and total >= 0
+        ))
+        and isinstance(seen, dict)
+        and (total is None or next_start <= total)
+        and all(
+            isinstance(name, str)
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}", name)
+            and isinstance(digest, str)
+            and re.fullmatch(r"[0-9a-f]{64}", digest)
+            for name, digest in seen.items()
+        )
+    )
+    if not valid:
+        LOG.warning("Ignoring checkpoint with invalid offsets, dataset names or SHA-256 values: %s", path)
+        return default
+    return {"next_start": next_start, "total": total, "seen": dict(seen)}
+
+
 def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 100,
                      checkpoint_path: Path | None = None,
                      progress: Callable[[int, int], None] | None = None) -> dict[str, Any]:
     if page_size < 1 or page_size > 1000: raise ValueError("page_size must be between 1 and 1000")
     checkpoint_path = checkpoint_path or output_dir / ".ckan_checkpoint.json"
     output_dir.mkdir(parents=True, exist_ok=True)
-    checkpoint: dict[str, Any] = {"next_start": 0, "total": None, "seen": {}}
-    if checkpoint_path.exists():
-        try:
-            loaded = json.loads(checkpoint_path.read_text(encoding="utf-8"))
-            if isinstance(loaded, dict) and isinstance(loaded.get("seen"), dict): checkpoint.update(loaded)
-        except (OSError, json.JSONDecodeError) as exc: LOG.warning("Ignoring invalid checkpoint %s: %s", checkpoint_path, exc)
-    start, seen, total = int(checkpoint.get("next_start", 0)), dict(checkpoint.get("seen", {})), checkpoint.get("total")
+    checkpoint = _load_checkpoint(checkpoint_path)
+    start, seen, total = checkpoint["next_start"], checkpoint["seen"], checkpoint["total"]
     extracted_at = datetime.now(timezone.utc).isoformat()
     while total is None or start < total:
         page = client.search_page(start=start, rows=page_size)
