@@ -106,3 +106,22 @@ Before considering a source resource production-ready:
 ## Scope
 
 These gates are an operational standard for the repository. They do not claim that all TSE datasets have already been ingested or that every source layout has been mapped. Actual readiness must be demonstrated by run evidence and tests.
+
+## Additional validation gates
+
+The ingestion components also enforce the following boundary checks:
+
+- The CKAN client accepts only absolute HTTP(S) base URLs without embedded credentials, query strings or fragments. Timeout and backoff values must be finite and positive/non-negative respectively; retry counts must be non-negative integers.
+- CKAN Action names are restricted to letters, digits, underscores and hyphens. Pagination offsets and page sizes are validated before a request; page sizes are limited to 1–1000 and remote result counts must be non-negative integers.
+- Discovery checkpoints are treated as untrusted local state. Offsets, remote totals, dataset slugs and SHA-256 values are validated before resuming. Invalid checkpoints are ignored and discovery restarts from offset zero.
+- ZIP extraction limits must use positive integer entry/size bounds and a finite positive compression ratio. Member paths with dot or empty segments are rejected before staging begins.
+- Primary-key uniqueness checks run only for non-null values that satisfy the declared field types. Invalid values remain validation errors and cannot crash the validator through an unhashable key.
+- Gold aggregation rejects empty or duplicate CSV headers and rows containing more values than the declared header width.
+
+Run the full Python validation suite with:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+These checks protect the ingestion boundary; they do not replace provenance verification against the official TSE source or semantic validation of every electoral dataset.
