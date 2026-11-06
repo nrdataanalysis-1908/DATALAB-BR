@@ -30,7 +30,7 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(client.calls,[(0,1),(1,1)])
     def test_resume_uses_checkpoint(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp); (root/".ckan_checkpoint.json").write_text(json.dumps({"next_start":1,"total":2,"seen":{"resultado-2022":"abc"}}))
+            root=Path(tmp); (root/".ckan_checkpoint.json").write_text(json.dumps({"next_start":1,"total":2,"seen":{"resultado-2022":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}))
             client=FakeClient(); result=discover_catalog(client,root,page_size=1)
             self.assertEqual(client.calls,[(1,1)]); self.assertEqual(result["dataset_count"],2)
     def test_skips_path_traversal_slug(self):
