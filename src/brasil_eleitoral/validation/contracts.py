@@ -114,14 +114,18 @@ def validate_records(records: Iterable[dict[str, Any]], contract: DataContract) 
             if item.allowed_values and value not in item.allowed_values:
                 report.errors.append({"row": row_number, "field": item.name, "code": "value_out_of_domain",
                                       "allowed_values": list(item.allowed_values), "actual": value})
-        field_types = {item.name: item.dtype for item in contract.fields}
         if contract.primary_key and all(
-            key in record
-            and record[key] is not None
-            and _TYPE_CHECKS[field_types[key]](record[key])
+            key in record and record[key] is not None
             for key in contract.primary_key
         ):
             key = tuple(record[name] for name in contract.primary_key)
+            try:
+                hash(key)
+            except TypeError:
+                # Invalid unhashable values are already reported by the
+                # field-type checks above; they cannot participate in key
+                # uniqueness tracking.
+                continue
             if key in seen_keys:
                 report.errors.append({"row": row_number, "field": list(contract.primary_key),
                                       "code": "duplicate_primary_key", "value": list(key)})
