@@ -15,6 +15,13 @@ from urllib.request import Request, urlopen
 LOG = logging.getLogger(__name__)
 
 
+def _is_finite_number(value: Any) -> bool:
+    try:
+        return math.isfinite(value)
+    except (OverflowError, TypeError):
+        return False
+
+
 class CKANError(RuntimeError):
     """Raised for transport errors or unsuccessful CKAN Action API responses."""
 
@@ -41,14 +48,14 @@ class CKANClient:
             raise ValueError("base_url must be an absolute HTTP(S) URL without credentials, query or fragment")
         if (
             isinstance(timeout, bool) or not isinstance(timeout, (int, float))
-            or not math.isfinite(timeout) or timeout <= 0
+            or not _is_finite_number(timeout) or timeout <= 0
         ):
             raise ValueError("timeout must be a finite positive number")
         if isinstance(retries, bool) or not isinstance(retries, int) or retries < 0:
             raise ValueError("retries must be a non-negative integer")
         if (
             isinstance(backoff, bool) or not isinstance(backoff, (int, float))
-            or not math.isfinite(backoff) or backoff < 0
+            or not _is_finite_number(backoff) or backoff < 0
         ):
             raise ValueError("backoff must be a finite non-negative number")
         if not isinstance(user_agent, str) or not user_agent.strip():
