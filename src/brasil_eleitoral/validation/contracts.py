@@ -157,6 +157,13 @@ def validate_records(records: Iterable[dict[str, Any]], contract: DataContract) 
 def validate_csv(path: Path, contract: DataContract, *, delimiter: str = ",",
                  encoding: str = "utf-8-sig") -> ValidationReport:
     """Stream a CSV file through a contract without loading it fully into memory."""
+    if (
+        not isinstance(delimiter, str)
+        or len(delimiter) != 1
+        or delimiter in {"\\r", "\\n", "\\x00"}
+    ):
+        raise ValueError("delimiter must be a single non-newline character")
+
     path = Path(path)
     if not path.is_file():
         raise FileNotFoundError(path)
