@@ -183,5 +183,18 @@ class ContractValidationTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         load_contract(path)
 
+
+    def test_load_contract_rejects_duplicate_json_keys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "contract.json"
+            path.write_text(
+                '{"name":"first","name":"second","version":1,'
+                '"fields":[{"name":"id","type":"string"}]}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "Duplicate JSON object key"):
+                load_contract(path)
+
+
 if __name__ == "__main__":
     unittest.main()
