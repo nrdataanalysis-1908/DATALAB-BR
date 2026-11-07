@@ -81,6 +81,7 @@ def _validated_members(archive: zipfile.ZipFile, *, max_entries: int,
         if info.compress_size and info.file_size / info.compress_size > max_compression_ratio:
             raise ExtractionError(f"Compression ratio exceeds limit: {name!r}")
 
+    # Validate explicit parents after collecting the complete archive index.
     for member_path, is_directory in path_kinds.items():
         if is_directory:
             continue
