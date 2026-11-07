@@ -20,6 +20,16 @@ from urllib.request import Request, urlopen
 LOG = logging.getLogger(__name__)
 _TRANSIENT = {408, 425, 429, 500, 502, 503, 504}
 _CHUNK = 1024 * 1024
+_MAX_TIMEOUT = 600.0
+_MAX_RETRIES = 10
+_MAX_BACKOFF = 300.0
+_MAX_CHUNK_SIZE = 16 * 1024 * 1024
+_WINDOWS_RESERVED_BASENAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{number}" for number in range(1, 10)),
+    *(f"LPT{number}" for number in range(1, 10)),
+    "COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³",
+}
 
 
 class DownloadError(RuntimeError):
@@ -60,6 +70,8 @@ def _safe_filename(name: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(name).name).strip("._")
     if not cleaned:
         raise ValueError("Resource filename is empty after sanitization")
+    if cleaned.split(".", 1)[0].upper() in _WINDOWS_RESERVED_BASENAMES:
+        cleaned = f"resource_{cleaned}"
     return cleaned[:180]
 
 
@@ -80,20 +92,37 @@ def download_resource(
     A partial transfer is resumed only when its sidecar matches the URL and
     the server confirms the byte range with HTTP 206. Otherwise it restarts.
     """
-    parsed = urlparse(url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+    if (
+        not isinstance(url, str) or not url or url != url.strip()
+        or any(ord(character) < 0x20 or ord(character) == 0x7F for character in url)
+    ):
+        raise ValueError("url must be a trimmed HTTP(S) URL without control characters")
+    try:
+        parsed = urlparse(url)
+        parsed.port  # Accessing port validates malformed numeric port declarations.
+    except ValueError as exc:
+        raise ValueError("Resource URL contains an invalid authority or port") from exc
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or not parsed.hostname:
         raise ValueError("Only absolute HTTP(S) resource URLs are supported")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("Resource URLs with embedded credentials are not supported")
     if (
         isinstance(timeout, bool) or not isinstance(timeout, (int, float))
-        or not math.isfinite(timeout) or timeout <= 0
+        or not math.isfinite(timeout) or timeout <= 0 or timeout > _MAX_TIMEOUT
     ):
-        raise ValueError("timeout must be a finite positive number")
-    if isinstance(backoff, bool) or not isinstance(backoff, (int, float)) or not math.isfinite(backoff) or backoff < 0:
-        raise ValueError("backoff must be a finite non-negative number")
-    if isinstance(retries, bool) or not isinstance(retries, int) or retries < 0:
-        raise ValueError("retries must be a non-negative integer")
-    if isinstance(chunk_size, bool) or not isinstance(chunk_size, int) or chunk_size < 1:
-        raise ValueError("chunk_size must be a positive integer")
+        raise ValueError(f"timeout must be finite, positive and <= {_MAX_TIMEOUT:g} seconds")
+    if (
+        isinstance(backoff, bool) or not isinstance(backoff, (int, float))
+        or not math.isfinite(backoff) or backoff < 0 or backoff > _MAX_BACKOFF
+    ):
+        raise ValueError(f"backoff must be finite, non-negative and <= {_MAX_BACKOFF:g} seconds")
+    if isinstance(retries, bool) or not isinstance(retries, int) or retries < 0 or retries > _MAX_RETRIES:
+        raise ValueError(f"retries must be an integer between 0 and {_MAX_RETRIES}")
+    if (
+        isinstance(chunk_size, bool) or not isinstance(chunk_size, int)
+        or chunk_size < 1 or chunk_size > _MAX_CHUNK_SIZE
+    ):
+        raise ValueError(f"chunk_size must be an integer between 1 and {_MAX_CHUNK_SIZE}")
     try:
         checksum = hashlib.new(checksum_algorithm)
     except (TypeError, ValueError) as exc:
@@ -203,11 +232,56 @@ def download_resource(
             # Integrity and protocol errors are not transient; retain partial
             # bytes for diagnosis, but never publish them as a completed file.
             raise
-        delay = backoff * (2 ** attempt) + random.uniform(0, backoff / 4)
+        delay = min(
+            backoff * (2 ** attempt) + random.uniform(0, backoff / 4),
+            _MAX_BACKOFF,
+        )
         LOG.warning("Download failed for %s (%s); retry %d/%d in %.2fs",
                     url, last_error, attempt + 1, retries, delay)
         time.sleep(delay)
     raise DownloadError(f"Download failed after {retries + 1} attempts: {last_error}") from last_error
+
+
+def _load_manifest_entries(manifest_path: Path, output_dir: Path) -> dict[str, dict[str, Any]]:
+    """Load only structurally valid entries that point to direct output files."""
+    if not manifest_path.exists():
+        return {}
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        LOG.warning("Existing download manifest is unreadable; a new manifest will be built")
+        return {}
+    if not isinstance(payload, dict):
+        LOG.warning("Existing download manifest is not an object; a new manifest will be built")
+        return {}
+    resources = payload.get("resources", [])
+    if not isinstance(resources, list):
+        LOG.warning("Existing download manifest resources are not an array; a new manifest will be built")
+        return {}
+
+    entries: dict[str, dict[str, Any]] = {}
+    output_root = output_dir.resolve()
+    for index, item in enumerate(resources):
+        if not isinstance(item, dict):
+            LOG.warning("Ignoring malformed manifest resource at index %d", index)
+            continue
+        resource_id = item.get("resource_id")
+        existing_path = item.get("path")
+        if (
+            not isinstance(resource_id, str) or not resource_id.strip()
+            or not isinstance(existing_path, str) or not existing_path.strip()
+        ):
+            LOG.warning("Ignoring manifest resource with invalid identity or path at index %d", index)
+            continue
+        try:
+            if Path(existing_path).parent.resolve() != output_root:
+                LOG.warning("Ignoring manifest resource outside the output directory: %s", resource_id)
+                continue
+        except (OSError, RuntimeError, ValueError):
+            LOG.warning("Ignoring manifest resource with an invalid path: %s", resource_id)
+            continue
+        entries[resource_id] = item
+    return entries
 
 
 def download_resources(
@@ -222,14 +296,7 @@ def download_resources(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = Path(manifest_path) if manifest_path else output_dir / "manifest.json"
-    entries: dict[str, dict[str, Any]] = {}
-    if manifest_path.exists():
-        try:
-            old = json.loads(manifest_path.read_text(encoding="utf-8"))
-            entries = {str(item["resource_id"]): item for item in old.get("resources", [])
-                       if item.get("resource_id")}
-        except (OSError, json.JSONDecodeError, KeyError, TypeError):
-            LOG.warning("Existing download manifest is invalid; a new manifest will be built")
+    entries = _load_manifest_entries(manifest_path, output_dir)
     failures: list[dict[str, str]] = []
     claimed_filenames: dict[str, str] = {}
     for existing_id, existing in entries.items():
