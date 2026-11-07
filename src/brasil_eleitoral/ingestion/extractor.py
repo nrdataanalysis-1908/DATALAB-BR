@@ -14,6 +14,27 @@ class ExtractionError(RuntimeError):
     """Raised when an archive is unsafe, corrupt, or exceeds configured limits."""
 
 
+_WINDOWS_RESERVED_BASENAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{number}" for number in range(1, 10)),
+    *(f"LPT{number}" for number in range(1, 10)),
+    "COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³",
+}
+
+
+def _validate_portable_component(component: str, member_name: str) -> None:
+    """Reject names that alias devices or streams on Windows filesystems."""
+    if component.endswith((".", " ")):
+        raise ExtractionError(f"Windows-incompatible trailing dot or space: {member_name!r}")
+    if ":" in component:
+        raise ExtractionError(f"Alternate data streams are not allowed: {member_name!r}")
+    basename = component.split(".", 1)[0].upper()
+    if basename in _WINDOWS_RESERVED_BASENAMES:
+        raise ExtractionError(f"Reserved Windows device name: {member_name!r}")
+    if len(component.encode("utf-16-le", errors="surrogatepass")) // 2 > 255:
+        raise ExtractionError(f"ZIP path component exceeds 255 UTF-16 units: {member_name!r}")
+
+
 def _validated_members(archive: zipfile.ZipFile, *, max_entries: int,
                        max_file_size: int, max_total_size: int,
                        max_compression_ratio: float) -> list[zipfile.ZipInfo]:
@@ -22,24 +43,27 @@ def _validated_members(archive: zipfile.ZipFile, *, max_entries: int,
         raise ExtractionError(f"Archive has {len(members)} entries; limit is {max_entries}")
 
     seen: set[str] = set()
+    path_kinds: dict[str, bool] = {}
     total = 0
     for info in members:
         name = info.filename
-        if not name or "\x00" in name or "\\" in name:
+        if not name or chr(0) in name or chr(92) in name:
             raise ExtractionError(f"Unsafe ZIP member path: {name!r}")
         canonical_name = name[:-1] if name.endswith("/") else name
         raw_parts = canonical_name.split("/")
         if not canonical_name or any(part in {"", ".", ".."} for part in raw_parts):
             raise ExtractionError(f"Path traversal or non-canonical path: {name!r}")
+        for component in raw_parts:
+            _validate_portable_component(component, name)
         path = PurePosixPath(name)
         if path.is_absolute():
             raise ExtractionError(f"Path traversal or non-canonical path: {name!r}")
-        if path.parts and ":" in path.parts[0]:
-            raise ExtractionError(f"Drive-qualified path is not allowed: {name!r}")
         normalized = path.as_posix().rstrip("/")
-        if normalized in seen:
-            raise ExtractionError(f"Duplicate archive path: {name!r}")
-        seen.add(normalized)
+        normalized_key = normalized.casefold()
+        if normalized_key in seen:
+            raise ExtractionError(f"Duplicate or case-insensitive archive path: {name!r}")
+        seen.add(normalized_key)
+        path_kinds[normalized_key] = info.is_dir()
 
         mode = (info.external_attr >> 16) & 0xFFFF
         kind = stat.S_IFMT(mode)
@@ -56,6 +80,17 @@ def _validated_members(archive: zipfile.ZipFile, *, max_entries: int,
             raise ExtractionError(f"Invalid compressed size: {name!r}")
         if info.compress_size and info.file_size / info.compress_size > max_compression_ratio:
             raise ExtractionError(f"Compression ratio exceeds limit: {name!r}")
+
+    for member_path, is_directory in path_kinds.items():
+        if is_directory:
+            continue
+        parts = member_path.split("/")
+        for index in range(1, len(parts)):
+            parent = "/".join(parts[:index])
+            if path_kinds.get(parent) is False:
+                raise ExtractionError(
+                    f"File member conflicts with a nested path: {member_path!r}"
+                )
     return members
 
 
