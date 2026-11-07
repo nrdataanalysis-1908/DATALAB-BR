@@ -81,11 +81,25 @@ def validate_records(records: Iterable[dict[str, Any]], contract: DataContract) 
         if contract.maximum_rows < contract.minimum_rows:
             raise ValueError("maximum_rows cannot be lower than minimum_rows")
     names = [item.name for item in contract.fields]
+    if any(not isinstance(name, str) or not name.strip() for name in names):
+        raise ValueError("Contract field names must be non-empty strings")
     if len(names) != len(set(names)):
         raise ValueError("Contract contains duplicate field names")
+    if any(not isinstance(key, str) or not key.strip() for key in contract.primary_key):
+        raise ValueError("Primary key fields must be non-empty strings")
+    if len(contract.primary_key) != len(set(contract.primary_key)):
+        raise ValueError("Primary key fields must be unique")
     unknown_keys = set(contract.primary_key) - set(names)
     if unknown_keys:
         raise ValueError(f"Primary key references unknown fields: {sorted(unknown_keys)}")
+    nullable_keys = [
+        item.name for item in contract.fields
+        if item.name in contract.primary_key and item.nullable
+    ]
+    if nullable_keys:
+        raise ValueError(
+            f"Primary key fields cannot be nullable: {', '.join(nullable_keys)}"
+        )
     for item in contract.fields:
         if item.dtype not in _TYPE_CHECKS:
             raise ValueError(f"Unsupported dtype {item.dtype!r} for field {item.name!r}")
@@ -249,11 +263,29 @@ def load_contract(path: Path) -> DataContract:
             allowed_values=tuple(allowed_values),
         ))
 
+    field_names = [item.name for item in fields]
+    if len(field_names) != len(set(field_names)):
+        raise ValueError("Contract contains duplicate field names")
+
     primary_key = payload.get("primary_key", [])
     minimum_rows = payload.get("minimum_rows", 0)
     maximum_rows = payload.get("maximum_rows")
-    if not isinstance(primary_key, list) or any(not isinstance(key, str) or not key for key in primary_key):
+    if not isinstance(primary_key, list) or any(
+        not isinstance(key, str) or not key.strip() for key in primary_key
+    ):
         raise ValueError("Contract primary_key must be an array of non-empty strings")
+    if len(primary_key) != len(set(primary_key)):
+        raise ValueError("Contract primary_key fields must be unique")
+    unknown_keys = set(primary_key) - set(field_names)
+    if unknown_keys:
+        raise ValueError(f"Primary key references unknown fields: {sorted(unknown_keys)}")
+    nullable_keys = [
+        item.name for item in fields if item.name in primary_key and item.nullable
+    ]
+    if nullable_keys:
+        raise ValueError(
+            f"Primary key fields cannot be nullable: {', '.join(nullable_keys)}"
+        )
     if isinstance(minimum_rows, bool) or not isinstance(minimum_rows, int) or minimum_rows < 0:
         raise ValueError("Contract minimum_rows must be a non-negative integer")
     if maximum_rows is not None and (
