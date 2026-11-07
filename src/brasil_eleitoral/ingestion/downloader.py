@@ -84,9 +84,20 @@ def download_resource(
     A partial transfer is resumed only when its sidecar matches the URL and
     the server confirms the byte range with HTTP 206. Otherwise it restarts.
     """
-    parsed = urlparse(url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+    if (
+        not isinstance(url, str) or not url or url != url.strip()
+        or any(ord(character) < 0x20 or ord(character) == 0x7F for character in url)
+    ):
+        raise ValueError("url must be a trimmed HTTP(S) URL without control characters")
+    try:
+        parsed = urlparse(url)
+        parsed.port  # Accessing port validates malformed numeric port declarations.
+    except ValueError as exc:
+        raise ValueError("Resource URL contains an invalid authority or port") from exc
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or not parsed.hostname:
         raise ValueError("Only absolute HTTP(S) resource URLs are supported")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("Resource URLs with embedded credentials are not supported")
     if (
         isinstance(timeout, bool) or not isinstance(timeout, (int, float))
         or not math.isfinite(timeout) or timeout <= 0 or timeout > _MAX_TIMEOUT
