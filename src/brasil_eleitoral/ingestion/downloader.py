@@ -24,6 +24,12 @@ _MAX_TIMEOUT = 600.0
 _MAX_RETRIES = 10
 _MAX_BACKOFF = 300.0
 _MAX_CHUNK_SIZE = 16 * 1024 * 1024
+_WINDOWS_RESERVED_BASENAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{number}" for number in range(1, 10)),
+    *(f"LPT{number}" for number in range(1, 10)),
+    "COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³",
+}
 
 
 class DownloadError(RuntimeError):
@@ -64,6 +70,8 @@ def _safe_filename(name: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(name).name).strip("._")
     if not cleaned:
         raise ValueError("Resource filename is empty after sanitization")
+    if cleaned.split(".", 1)[0].upper() in _WINDOWS_RESERVED_BASENAMES:
+        cleaned = f"resource_{cleaned}"
     return cleaned[:180]
 
 
