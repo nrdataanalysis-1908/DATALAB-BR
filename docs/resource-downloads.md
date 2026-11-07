@@ -34,3 +34,12 @@ O campo CKAN \`hash\` é preservado no catálogo, mas não é presumido como SHA
 O downloader aceita somente URLs absolutas HTTP(S), sanitiza nomes de arquivo, valida timeout/backoff finitos, contadores inteiros e a configuração do checksum antes de iniciar a rede. Nomes são reservados por identificador no manifesto: colisões após sanitização (inclusive diferenças apenas de maiúsculas/minúsculas), conflitos entre execuções e tentativas de sobrescrever o próprio manifesto são rejeitados. O mesmo identificador pode atualizar seu arquivo já registrado. Os arquivos são dados externos não confiáveis; não abra nem extraia automaticamente os downloads. A extração segura será uma etapa separada com limites de tamanho, caminhos e tipos de entrada.
 
 Os testes automatizados usam respostas HTTP simuladas. A validação de rede contra o portal deve ocorrer em ambiente com acesso à internet e deve ser feita inicialmente sobre um conjunto pequeno de recursos.
+
+
+## Resource URL, retry and manifest boundaries
+
+Resource URLs must be absolute HTTP(S) URLs without embedded user credentials, malformed ports, surrounding whitespace or control characters. This prevents credentials from being persisted in the manifest and rejects malformed request targets before network I/O.
+
+The downloader bounds network settings to a 600-second timeout, at most 10 retries, a 300-second exponential-backoff ceiling and a 16 MiB read chunk. These limits prevent accidental unbounded waits or memory allocations from configuration mistakes.
+
+When reopening an existing manifest, only an object with a resources array is accepted. Malformed entries and paths that do not resolve to direct children of the output directory are ignored; a damaged manifest is rebuilt without trusting arbitrary paths.
