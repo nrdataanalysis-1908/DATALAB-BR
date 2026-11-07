@@ -210,6 +210,37 @@ def download_resource(
     raise DownloadError(f"Download failed after {retries + 1} attempts: {last_error}") from last_error
 
 
+def _load_manifest_entries(manifest_path: Path, output_dir: Path) -> dict[str, dict[str, Any]]:
+    """Load only structurally valid entries that point to direct output files."""
+    if not manifest_path.exists():
+        return {}
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        LOG.warning("Existing download manifest is unreadable; a new manifest will     entries = _load_manifest_entries(manifest_path, output_dir).resolve()
+    for index, item in enumerate(resources):
+        if not isinstance(item, dict):
+            LOG.warning("Ignoring malformed manifest resource at index %d", index)
+            continue
+        resource_id = item.get("resource_id")
+        existing_path = item.get("path")
+        if (
+            not isinstance(resource_id, str) or not resource_id.strip()
+            or not isinstance(existing_path, str) or not existing_path.strip()
+        ):
+            LOG.warning("Ignoring manifest resource with invalid identity or path at index %d", index)
+            continue
+        try:
+            if Path(existing_path).parent.resolve() != output_root:
+                LOG.warning("Ignoring manifest resource outside the output directory: %s", resource_id)
+                continue
+        except (OSError, RuntimeError, ValueError):
+            LOG.warning("Ignoring manifest resource with an invalid path: %s", resource_id)
+            continue
+        entries[resource_id] = item
+    return entries
+
+
 def download_resources(
     resources: list[dict[str, Any]],
     output_dir: Path,
