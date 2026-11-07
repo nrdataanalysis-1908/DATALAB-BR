@@ -199,9 +199,22 @@ def _parse_csv_value(value: str | None, dtype: str) -> Any:
         return value
 
 
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object while rejecting duplicate keys at every nesting level."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON object key: {key!r}")
+        result[key] = value
+    return result
+
+
 def load_contract(path: Path) -> DataContract:
     """Load a JSON contract definition without coercing malformed schema values."""
-    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    payload = json.loads(
+        Path(path).read_text(encoding="utf-8"), object_pairs_hook=_unique_json_object
+    )
     if not isinstance(payload, dict):
         raise ValueError("Contract document must be a JSON object")
 
