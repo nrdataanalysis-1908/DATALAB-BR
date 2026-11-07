@@ -20,6 +20,10 @@ from urllib.request import Request, urlopen
 LOG = logging.getLogger(__name__)
 _TRANSIENT = {408, 425, 429, 500, 502, 503, 504}
 _CHUNK = 1024 * 1024
+_MAX_TIMEOUT = 600.0
+_MAX_RETRIES = 10
+_MAX_BACKOFF = 300.0
+_MAX_CHUNK_SIZE = 16 * 1024 * 1024
 
 
 class DownloadError(RuntimeError):
@@ -85,15 +89,21 @@ def download_resource(
         raise ValueError("Only absolute HTTP(S) resource URLs are supported")
     if (
         isinstance(timeout, bool) or not isinstance(timeout, (int, float))
-        or not math.isfinite(timeout) or timeout <= 0
+        or not math.isfinite(timeout) or timeout <= 0 or timeout > _MAX_TIMEOUT
     ):
-        raise ValueError("timeout must be a finite positive number")
-    if isinstance(backoff, bool) or not isinstance(backoff, (int, float)) or not math.isfinite(backoff) or backoff < 0:
-        raise ValueError("backoff must be a finite non-negative number")
-    if isinstance(retries, bool) or not isinstance(retries, int) or retries < 0:
-        raise ValueError("retries must be a non-negative integer")
-    if isinstance(chunk_size, bool) or not isinstance(chunk_size, int) or chunk_size < 1:
-        raise ValueError("chunk_size must be a positive integer")
+        raise ValueError(f"timeout must be finite, positive and <= {_MAX_TIMEOUT:g} seconds")
+    if (
+        isinstance(backoff, bool) or not isinstance(backoff, (int, float))
+        or not math.isfinite(backoff) or backoff < 0 or backoff > _MAX_BACKOFF
+    ):
+        raise ValueError(f"backoff must be finite, non-negative and <= {_MAX_BACKOFF:g} seconds")
+    if isinstance(retries, bool) or not isinstance(retries, int) or retries < 0 or retries > _MAX_RETRIES:
+        raise ValueError(f"retries must be an integer between 0 and {_MAX_RETRIES}")
+    if (
+        isinstance(chunk_size, bool) or not isinstance(chunk_size, int)
+        or chunk_size < 1 or chunk_size > _MAX_CHUNK_SIZE
+    ):
+        raise ValueError(f"chunk_size must be an integer between 1 and {_MAX_CHUNK_SIZE}")
     try:
         checksum = hashlib.new(checksum_algorithm)
     except (TypeError, ValueError) as exc:
@@ -203,7 +213,10 @@ def download_resource(
             # Integrity and protocol errors are not transient; retain partial
             # bytes for diagnosis, but never publish them as a completed file.
             raise
-        delay = backoff * (2 ** attempt) + random.uniform(0, backoff / 4)
+        delay = min(
+            backoff * (2 ** attempt) + random.uniform(0, backoff / 4),
+            _MAX_BACKOFF,
+        )
         LOG.warning("Download failed for %s (%s); retry %d/%d in %.2fs",
                     url, last_error, attempt + 1, retries, delay)
         time.sleep(delay)
