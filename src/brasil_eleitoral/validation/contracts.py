@@ -81,11 +81,25 @@ def validate_records(records: Iterable[dict[str, Any]], contract: DataContract) 
         if contract.maximum_rows < contract.minimum_rows:
             raise ValueError("maximum_rows cannot be lower than minimum_rows")
     names = [item.name for item in contract.fields]
+    if any(not isinstance(name, str) or not name.strip() for name in names):
+        raise ValueError("Contract field names must be non-empty strings")
     if len(names) != len(set(names)):
         raise ValueError("Contract contains duplicate field names")
+    if any(not isinstance(key, str) or not key.strip() for key in contract.primary_key):
+        raise ValueError("Primary key fields must be non-empty strings")
+    if len(contract.primary_key) != len(set(contract.primary_key)):
+        raise ValueError("Primary key fields must be unique")
     unknown_keys = set(contract.primary_key) - set(names)
     if unknown_keys:
         raise ValueError(f"Primary key references unknown fields: {sorted(unknown_keys)}")
+    nullable_keys = [
+        item.name for item in contract.fields
+        if item.name in contract.primary_key and item.nullable
+    ]
+    if nullable_keys:
+        raise ValueError(
+            f"Primary key fields cannot be nullable: {', '.join(nullable_keys)}"
+        )
     for item in contract.fields:
         if item.dtype not in _TYPE_CHECKS:
             raise ValueError(f"Unsupported dtype {item.dtype!r} for field {item.name!r}")
@@ -143,6 +157,13 @@ def validate_records(records: Iterable[dict[str, Any]], contract: DataContract) 
 def validate_csv(path: Path, contract: DataContract, *, delimiter: str = ",",
                  encoding: str = "utf-8-sig") -> ValidationReport:
     """Stream a CSV file through a contract without loading it fully into memory."""
+    if (
+        not isinstance(delimiter, str)
+        or len(delimiter) != 1
+        or delimiter in {"\\r", "\\n", "\\x00"}
+    ):
+        raise ValueError("delimiter must be a single non-newline character")
+
     path = Path(path)
     if not path.is_file():
         raise FileNotFoundError(path)
@@ -199,9 +220,22 @@ def _parse_csv_value(value: str | None, dtype: str) -> Any:
         return value
 
 
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object while rejecting duplicate keys at every nesting level."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON object key: {key!r}")
+        result[key] = value
+    return result
+
+
 def load_contract(path: Path) -> DataContract:
     """Load a JSON contract definition without coercing malformed schema values."""
-    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    payload = json.loads(
+        Path(path).read_text(encoding="utf-8"), object_pairs_hook=_unique_json_object
+    )
     if not isinstance(payload, dict):
         raise ValueError("Contract document must be a JSON object")
 
@@ -236,11 +270,29 @@ def load_contract(path: Path) -> DataContract:
             allowed_values=tuple(allowed_values),
         ))
 
+    field_names = [item.name for item in fields]
+    if len(field_names) != len(set(field_names)):
+        raise ValueError("Contract contains duplicate field names")
+
     primary_key = payload.get("primary_key", [])
     minimum_rows = payload.get("minimum_rows", 0)
     maximum_rows = payload.get("maximum_rows")
-    if not isinstance(primary_key, list) or any(not isinstance(key, str) or not key for key in primary_key):
+    if not isinstance(primary_key, list) or any(
+        not isinstance(key, str) or not key.strip() for key in primary_key
+    ):
         raise ValueError("Contract primary_key must be an array of non-empty strings")
+    if len(primary_key) != len(set(primary_key)):
+        raise ValueError("Contract primary_key fields must be unique")
+    unknown_keys = set(primary_key) - set(field_names)
+    if unknown_keys:
+        raise ValueError(f"Primary key references unknown fields: {sorted(unknown_keys)}")
+    nullable_keys = [
+        item.name for item in fields if item.name in primary_key and item.nullable
+    ]
+    if nullable_keys:
+        raise ValueError(
+            f"Primary key fields cannot be nullable: {', '.join(nullable_keys)}"
+        )
     if isinstance(minimum_rows, bool) or not isinstance(minimum_rows, int) or minimum_rows < 0:
         raise ValueError("Contract minimum_rows must be a non-negative integer")
     if maximum_rows is not None and (

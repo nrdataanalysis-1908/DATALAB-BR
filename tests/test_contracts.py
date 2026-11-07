@@ -183,5 +183,60 @@ class ContractValidationTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         load_contract(path)
 
+
+    def test_load_contract_rejects_duplicate_json_keys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "contract.json"
+            path.write_text(
+                '{"name":"first","name":"second","version":1,'
+                '"fields":[{"name":"id","type":"string"}]}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "Duplicate JSON object key"):
+                load_contract(path)
+
+
+
+    def test_contract_rejects_duplicate_primary_key_fields(self):
+        contract = DataContract(
+            name="duplicate_key", version=1,
+            fields=(FieldContract("id", "string"),),
+            primary_key=("id", "id"),
+        )
+        with self.assertRaisesRegex(ValueError, "must be unique"):
+            validate_records([], contract)
+
+    def test_contract_rejects_nullable_primary_key_fields(self):
+        contract = DataContract(
+            name="nullable_key", version=1,
+            fields=(FieldContract("id", "string", nullable=True),),
+            primary_key=("id",),
+        )
+        with self.assertRaisesRegex(ValueError, "cannot be nullable"):
+            validate_records([], contract)
+
+    def test_load_contract_rejects_unknown_primary_key_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "contract.json"
+            path.write_text(json.dumps({
+                "name": "strict", "version": 1,
+                "fields": [{"name": "id", "type": "string"}],
+                "primary_key": ["missing"],
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "unknown fields"):
+                load_contract(path)
+
+
+
+    def test_csv_validation_rejects_invalid_delimiters(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "results.csv"
+            path.write_text("year,candidate_id,votes,status\\n", encoding="utf-8")
+            for delimiter in ("", "::", None, "\\n", "\\x00"):
+                with self.subTest(delimiter=delimiter):
+                    with self.assertRaisesRegex(ValueError, "single non-newline character"):
+                        validate_csv(path, self.contract, delimiter=delimiter)
+
+
 if __name__ == "__main__":
     unittest.main()
