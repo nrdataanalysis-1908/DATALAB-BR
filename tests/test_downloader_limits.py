@@ -18,11 +18,11 @@ class DownloadLimitTests(unittest.TestCase):
             for options in invalid_options:
                 with self.subTest(options=options):
                     with self.assertRaises(ValueError):
+                        kwargs = {"retries": 0, **options}
                         download_resource(
                             "https://example.test/resource.bin",
                             target,
-                            retries=0,
-                            **options,
+                            **kwargs,
                         )
 
 
