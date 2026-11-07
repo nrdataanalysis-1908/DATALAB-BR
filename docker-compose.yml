@@ -33,6 +33,7 @@ services:
       - "8501:8501"
     volumes:
       - ./catalog:/app/catalog:ro
+      - ./reports:/app/reports
     depends_on:
       api:
         condition: service_healthy
