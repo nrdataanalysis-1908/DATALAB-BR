@@ -227,5 +227,16 @@ class ContractValidationTests(unittest.TestCase):
                 load_contract(path)
 
 
+
+    def test_csv_validation_rejects_invalid_delimiters(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "results.csv"
+            path.write_text("year,candidate_id,votes,status\\n", encoding="utf-8")
+            for delimiter in ("", "::", None, "\\n", "\\x00"):
+                with self.subTest(delimiter=delimiter):
+                    with self.assertRaisesRegex(ValueError, "single non-newline character"):
+                        validate_csv(path, self.contract, delimiter=delimiter)
+
+
 if __name__ == "__main__":
     unittest.main()
