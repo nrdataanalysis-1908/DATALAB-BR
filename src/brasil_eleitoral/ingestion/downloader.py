@@ -249,7 +249,18 @@ def _load_manifest_entries(manifest_path: Path, output_dir: Path) -> dict[str, d
     try:
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
-        LOG.warning("Existing download manifest is unreadable; a new manifest will     entries = _load_manifest_entries(manifest_path, output_dir).resolve()
+        LOG.warning("Existing download manifest is unreadable; a new manifest will be built")
+        return {}
+    if not isinstance(payload, dict):
+        LOG.warning("Existing download manifest is not an object; a new manifest will be built")
+        return {}
+    resources = payload.get("resources", [])
+    if not isinstance(resources, list):
+        LOG.warning("Existing download manifest resources are not an array; a new manifest will be built")
+        return {}
+
+    entries: dict[str, dict[str, Any]] = {}
+    output_root = output_dir.resolve()
     for index, item in enumerate(resources):
         if not isinstance(item, dict):
             LOG.warning("Ignoring malformed manifest resource at index %d", index)
@@ -285,14 +296,7 @@ def download_resources(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = Path(manifest_path) if manifest_path else output_dir / "manifest.json"
-    entries: dict[str, dict[str, Any]] = {}
-    if manifest_path.exists():
-        try:
-            old = json.loads(manifest_path.read_text(encoding="utf-8"))
-            entries = {str(item["resource_id"]): item for item in old.get("resources", [])
-                       if item.get("resource_id")}
-        except (OSError, json.JSONDecodeError, KeyError, TypeError):
-            LOG.warning("Existing download manifest is invalid; a new manifest will be built")
+    entries = _load_manifest_entries(manifest_path, output_dir)
     failures: list[dict[str, str]] = []
     claimed_filenames: dict[str, str] = {}
     for existing_id, existing in entries.items():
