@@ -9,6 +9,25 @@ from brasil_eleitoral.transformation.medallion import (
 
 
 class MedallionTests(unittest.TestCase):
+    def test_bronze_rejects_dot_segment_identifiers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "raw.csv"
+            source.write_text("a,b\\n1,2\\n", encoding="utf-8")
+            invalid_pairs = (
+                ("..", "results"),
+                ("tse", ".."),
+                (".", "results"),
+                ("tse", "."),
+            )
+            for source_id, dataset in invalid_pairs:
+                with self.subTest(source_id=source_id, dataset=dataset):
+                    with self.assertRaises(MedallionError):
+                        bronze_ingest(
+                            source, root / "lake",
+                            source_id=source_id, dataset=dataset,
+                        )
+
     def test_bronze_is_content_addressed_and_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
