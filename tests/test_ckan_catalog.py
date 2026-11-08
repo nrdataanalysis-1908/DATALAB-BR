@@ -53,7 +53,10 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(result["dataset_count"],0); self.assertFalse((Path(tmp).parent/"escape.json").exists())
     def test_rejects_invalid_page_size(self):
         with tempfile.TemporaryDirectory() as tmp:
-            with self.assertRaises(ValueError): discover_catalog(FakeClient(),Path(tmp),page_size=0)
+            for value in (0, True, 1.5, "10"):
+                with self.subTest(value=value):
+                    with self.assertRaises(ValueError):
+                        discover_catalog(FakeClient(), Path(tmp), page_size=value)
     @patch("brasil_eleitoral.ckan.client.urlopen")
     @patch("brasil_eleitoral.ckan.client.time.sleep")
     def test_retries_transient_http_error(self,sleep,urlopen):
