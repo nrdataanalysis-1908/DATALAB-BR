@@ -90,6 +90,26 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
     output_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = _load_checkpoint(checkpoint_path)
     start, seen, total = checkpoint["next_start"], checkpoint["seen"], checkpoint["total"]
+    verified_seen: dict[str, str] = {}
+    checkpoint_incomplete = False
+    for name, expected_digest in seen.items():
+        cached_path = output_dir / f"{name}.json"
+        if cached_path.is_symlink() or not cached_path.is_file():
+            checkpoint_incomplete = True
+            continue
+        try:
+            actual_digest = hashlib.sha256(cached_path.read_bytes()).hexdigest()
+        except OSError:
+            checkpoint_incomplete = True
+            continue
+        if actual_digest != expected_digest:
+            checkpoint_incomplete = True
+            continue
+        verified_seen[name] = expected_digest
+    if checkpoint_incomplete:
+        LOG.warning("Checkpoint references missing or changed datasets; restarting pagination")
+        start = 0
+    seen = verified_seen
     extracted_at = datetime.now(timezone.utc).isoformat()
     while total is None or start < total:
         page = client.search_page(start=start, rows=page_size)
