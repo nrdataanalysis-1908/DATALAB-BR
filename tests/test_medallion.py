@@ -13,7 +13,7 @@ class MedallionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "raw.csv"
-            source.write_text("a,b\\n1,2\\n", encoding="utf-8")
+            source.write_text("a,b\n1,2\n", encoding="utf-8")
             invalid_pairs = (
                 ("..", "results"),
                 ("tse", ".."),
@@ -47,7 +47,7 @@ class MedallionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source, output = root / "raw.csv", root / "silver.csv"
-            source.write_text("state,votes\\nMG\\n", encoding="utf-8")
+            source.write_text("state,votes\nMG\n", encoding="utf-8")
             with self.assertRaisesRegex(MedallionError, "fewer columns"):
                 silver_normalize_csv(source, output)
             self.assertFalse(output.exists())
@@ -74,12 +74,12 @@ class MedallionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             silver_source = root / "silver-source.csv"
-            silver_source.write_text("state,votes\\nMG,10\\n", encoding="utf-8")
+            silver_source.write_text("state,votes\nMG,10\n", encoding="utf-8")
             with self.assertRaisesRegex(MedallionError, "different files"):
                 silver_normalize_csv(silver_source, silver_source)
 
             gold_source = root / "gold-source.csv"
-            gold_source.write_text("state,votes\\nMG,10\\n", encoding="utf-8")
+            gold_source.write_text("state,votes\nMG,10\n", encoding="utf-8")
             with self.assertRaisesRegex(MedallionError, "different files"):
                 gold_aggregate_results(
                     gold_source, gold_source, dimensions=("state",)
