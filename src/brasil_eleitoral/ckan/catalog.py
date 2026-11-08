@@ -27,24 +27,68 @@ def _atomic_json(path: Path, payload: Any) -> None:
         raise
 
 def normalize_dataset(dataset: dict[str, Any], *, source_url: str, extracted_at: str) -> dict[str, Any]:
-    resources = []
-    for resource in dataset.get("resources") or []:
-        resources.append({"id": resource.get("id"), "name": resource.get("name"),
-            "description": resource.get("description"), "format": (resource.get("format") or "").upper() or None,
-            "url": resource.get("url"), "created": resource.get("created"),
-            "last_modified": resource.get("last_modified"), "size": resource.get("size"),
-            "hash": resource.get("hash"), "datastore_active": resource.get("datastore_active"),
-            "mimetype": resource.get("mimetype")})
-    return {"id": dataset.get("id"), "name": dataset.get("name"), "title": dataset.get("title"),
-        "notes": dataset.get("notes"), "organization": (dataset.get("organization") or {}).get("title"),
-        "organization_id": (dataset.get("organization") or {}).get("id"),
-        "groups": [g.get("title") or g.get("name") for g in dataset.get("groups") or []],
-        "tags": [t.get("name") for t in dataset.get("tags") or []],
-        "metadata_created": dataset.get("metadata_created"), "metadata_modified": dataset.get("metadata_modified"),
-        "license_id": dataset.get("license_id"), "license_title": dataset.get("license_title"),
-        "url": dataset.get("url"), "resources": resources, "source": "Tribunal Superior Eleitoral",
-        "source_url": source_url, "extracted_at": extracted_at}
+    if not isinstance(dataset, dict):
+        raise ValueError("CKAN dataset must be an object")
 
+    organization = dataset.get("organization")
+    if organization is None:
+        organization = {}
+    if not isinstance(organization, dict):
+        raise ValueError("CKAN dataset organization must be an object")
+
+    collections = {
+        "resources": dataset.get("resources"),
+        "groups": dataset.get("groups"),
+        "tags": dataset.get("tags"),
+    }
+    for label, value in collections.items():
+        if value is not None and (
+            not isinstance(value, list)
+            or any(not isinstance(item, dict) for item in value)
+        ):
+            raise ValueError(f"CKAN dataset {label} must be an array of objects")
+
+    resources = []
+    for resource in collections["resources"] or []:
+        format_value = resource.get("format")
+        resources.append({
+            "id": resource.get("id"),
+            "name": resource.get("name"),
+            "description": resource.get("description"),
+            "format": str(format_value).upper() if format_value else None,
+            "url": resource.get("url"),
+            "created": resource.get("created"),
+            "last_modified": resource.get("last_modified"),
+            "size": resource.get("size"),
+            "hash": resource.get("hash"),
+            "datastore_active": resource.get("datastore_active"),
+            "mimetype": resource.get("mimetype"),
+        })
+    return {
+        "id": dataset.get("id"),
+        "name": dataset.get("name"),
+        "title": dataset.get("title"),
+        "notes": dataset.get("notes"),
+        "organization": organization.get("title"),
+        "organization_id": organization.get("id"),
+        "groups": [
+            group.get("title") or group.get("name")
+            for group in collections["groups"] or []
+        ],
+        "tags": [
+            tag.get("name")
+            for tag in collections["tags"] or []
+        ],
+        "metadata_created": dataset.get("metadata_created"),
+        "metadata_modified": dataset.get("metadata_modified"),
+        "license_id": dataset.get("license_id"),
+        "license_title": dataset.get("license_title"),
+        "url": dataset.get("url"),
+        "resources": resources,
+        "source": "Tribunal Superior Eleitoral",
+        "source_url": source_url,
+        "extracted_at": extracted_at,
+    }
 def _load_checkpoint(path: Path) -> dict[str, Any]:
     default: dict[str, Any] = {"next_start": 0, "total": None, "seen": {}}
     if not path.exists():
@@ -123,7 +167,13 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
         for dataset in results:
             if not isinstance(dataset, dict) or not dataset.get("name"):
                 LOG.warning("Skipping malformed CKAN dataset at offset %d", start); continue
-            normalized = normalize_dataset(dataset, source_url=client.base_url, extracted_at=extracted_at)
+            try:
+                normalized = normalize_dataset(
+                    dataset, source_url=client.base_url, extracted_at=extracted_at
+                )
+            except ValueError as exc:
+                LOG.warning("Skipping malformed CKAN dataset at offset %d: %s", start, exc)
+                continue
             if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}", normalized["name"]):
                 LOG.warning("Skipping unsafe CKAN dataset slug: %r", normalized["name"]); continue
             target = output_dir / f"{normalized['name']}.json"
