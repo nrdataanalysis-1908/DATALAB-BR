@@ -51,12 +51,13 @@ def bronze_ingest(source: Path, root: Path, *, source_id: str, dataset: str,
     source, root = Path(source), Path(root)
     if not source.is_file():
         raise FileNotFoundError(source)
+    identifier_pattern = r"[A-Za-z0-9][A-Za-z0-9_.-]{0,199}"
     for value, label in ((source_id, "source_id"), (dataset, "dataset")):
-        if not value or not re.fullmatch(r"[A-Za-z0-9_.-]+", value):
+        if not isinstance(value, str) or not re.fullmatch(identifier_pattern, value):
             raise MedallionError(f"Invalid {label}")
     digest = sha256_file(source)
     execution_id = execution_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    if not re.fullmatch(r"[A-Za-z0-9_.-]+", execution_id):
+    if not isinstance(execution_id, str) or not re.fullmatch(identifier_pattern, execution_id):
         raise MedallionError("Invalid execution_id")
     destination_dir = root / "bronze" / source_id / dataset / digest[:2]
     destination_dir.mkdir(parents=True, exist_ok=True)
