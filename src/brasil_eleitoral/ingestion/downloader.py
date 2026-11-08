@@ -274,9 +274,31 @@ def _load_manifest_entries(manifest_path: Path, output_dir: Path) -> dict[str, d
             LOG.warning("Ignoring manifest resource with invalid identity or path at index %d", index)
             continue
         try:
-            if Path(existing_path).parent.resolve() != output_root:
-                LOG.warning("Ignoring manifest resource outside the output directory: %s", resource_id)
+            candidate_path = Path(existing_path)
+            if (
+                candidate_path.parent.resolve() != output_root
+                or candidate_path.is_symlink()
+                or not candidate_path.is_file()
+            ):
+                LOG.warning(
+                    "Ignoring missing, linked or external manifest resource: %s",
+                    resource_id,
+                )
                 continue
+            expected_checksum = item.get("checksum")
+            if expected_checksum is not None:
+                algorithm = item.get("checksum_algorithm", "sha256")
+                if not isinstance(expected_checksum, str) or not isinstance(algorithm, str):
+                    LOG.warning("Ignoring manifest resource with invalid checksum metadata: %s", resource_id)
+                    continue
+                try:
+                    actual_checksum = _digest(candidate_path, algorithm)
+                except ValueError:
+                    LOG.warning("Ignoring manifest resource with unsupported checksum: %s", resource_id)
+                    continue
+                if actual_checksum.lower() != expected_checksum.lower():
+                    LOG.warning("Ignoring manifest resource whose checksum changed: %s", resource_id)
+                    continue
         except (OSError, RuntimeError, ValueError):
             LOG.warning("Ignoring manifest resource with an invalid path: %s", resource_id)
             continue
