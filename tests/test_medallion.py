@@ -43,6 +43,15 @@ class MedallionTests(unittest.TestCase):
             self.assertEqual(Path(first["path"]).read_bytes(), source.read_bytes())
             self.assertTrue(Path(first["metadata_path"]).is_file())
 
+    def test_silver_rejects_rows_with_missing_trailing_columns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source, output = root / "raw.csv", root / "silver.csv"
+            source.write_text("state,votes\\nMG\\n", encoding="utf-8")
+            with self.assertRaisesRegex(MedallionError, "fewer columns"):
+                silver_normalize_csv(source, output)
+            self.assertFalse(output.exists())
+
     def test_silver_normalizes_headers_and_values(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
