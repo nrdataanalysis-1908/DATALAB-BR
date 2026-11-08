@@ -106,6 +106,8 @@ def silver_normalize_csv(source: Path, destination: Path, *,
                          encoding: str = "utf-8-sig", delimiter: str = ",") -> dict:
     """Normalize CSV headers and whitespace, retaining values as strings."""
     source, destination = Path(source), Path(destination)
+    if source.resolve() == destination.resolve():
+        raise MedallionError("Source and destination must be different files")
     if not source.is_file():
         raise FileNotFoundError(source)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -155,6 +157,8 @@ def gold_aggregate_results(source: Path, destination: Path, *,
                            encoding: str = "utf-8-sig") -> dict:
     """Aggregate normalized result rows by explicit dimensions and sum a metric."""
     source, destination = Path(source), Path(destination)
+    if source.resolve() == destination.resolve():
+        raise MedallionError("Source and destination must be different files")
     dimensions = tuple(dimensions)
     if not dimensions or len(set(dimensions)) != len(dimensions):
         raise MedallionError("Provide unique, non-empty aggregation dimensions")
