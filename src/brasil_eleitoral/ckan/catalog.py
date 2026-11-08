@@ -174,7 +174,10 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
             except ValueError as exc:
                 LOG.warning("Skipping malformed CKAN dataset at offset %d: %s", start, exc)
                 continue
-            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}", normalized["name"]):
+            if (
+                not isinstance(normalized["name"], str)
+                or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}", normalized["name"])
+            ):
                 LOG.warning("Skipping unsafe CKAN dataset slug: %r", normalized["name"]); continue
             target = output_dir / f"{normalized['name']}.json"
             _atomic_json(target, normalized)
