@@ -48,7 +48,7 @@ A interface Web consulta a API pelo endereço local `http://localhost:3001`, e o
 | Web | http://localhost:3000 |
 | API health | http://localhost:3001/health |
 | API catálogo | http://localhost:3001/api/v1/catalog |
-| Analytics | http://localhost:8501 |
+| Relatório HTML | http://localhost:8501/catalog/index.html |
 
 ## 4. Verificar e encerrar
 
@@ -62,6 +62,6 @@ docker compose -f docker-compose.ghcr.yml down
 
 - O Compose usa imagens preexistentes; não executa build local.
 - O diretório `catalog` é montado como somente leitura nos serviços que consomem metadados.
-- O painel analítico desta versão explora metadados do catálogo CKAN. Ele não deve ser interpretado como painel de votos ou resultados eleitorais.
+- O serviço Analytics serve um relatório HTML estático de metadados do catálogo CKAN em `http://localhost:8501/catalog/index.html`. Ele não deve ser interpretado como painel de votos ou resultados eleitorais. A imagem GHCR `v0.1.0-alpha.2` antecede esta migração; publique uma nova release para distribuir a versão HTML.
 - Esta composição é destinada a desenvolvimento e avaliação. Não configura TLS, autenticação da aplicação, proxy reverso, backups ou hardening de produção.
 - A tag alpha é uma versão de pré-lançamento e pode sofrer alterações incompatíveis.

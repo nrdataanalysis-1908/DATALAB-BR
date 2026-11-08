@@ -6,8 +6,7 @@
   <a href="https://img.shields.io/badge/Python-3.10%2B-3776AB"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python"></a>
   <a href="https://img.shields.io/badge/Node.js-20%2B-339933"><img src="https://img.shields.io/badge/Node.js-20%2B-168bd0?logo=nodedotjs&logoColor=white" alt="Node.js"></a>
   <a href="https://img.shields.io/badge/Next.js-Web-000000"><img src="https://img.shields.io/badge/Next.js-Web-000000?logo=nextdotjs" alt="Next.js"></a>
-  <a href="https://img.shields.io/badge/Streamlit-Analytics-FF4B4B"><img src="https://img.shields.io/badge/Streamlit-Analytics-168bd0?logo=streamlit&logoColor=white" alt="Streamlit"></a>
-  <a href="https://img.shields.io/badge/Plotly-Charts-3F4F75"><img src="https://img.shields.io/badge/Plotly-Charts-28516a?logo=plotly" alt="Plotly"></a>
+  <a href="https://img.shields.io/badge/Streamlit-Analytics-FF4B4B"><img src="https://img.shields.io/badge/Streamlit-Analytics-FF4B4B?logo=streamlit&logoColor=white" alt="Streamlit Analytics"></a>
   <a href="https://img.shields.io/badge/Source-TSE-168bd0"><img src="https://img.shields.io/badge/Source-TSE-0B6E99" alt="TSE"></a>
 </p>
 
@@ -23,7 +22,7 @@ Laboratório aberto de engenharia, auditoria e análise de dados eleitorais bras
 
 - [Visão geral](#visão-geral)
 - [Destaques técnicos](#destaques-técnicos)
-- [Painel analítico](#painel-analítico)
+- [Painel e relatórios](#painel-e-relatórios)
 - [Arquitetura](#arquitetura)
 - [Pipeline de dados](#pipeline-de-dados)
 - [Domínios eleitorais](#domínios-eleitorais)
@@ -63,36 +62,35 @@ A plataforma diferencia explicitamente capacidades implementadas, integrações 
 - Extração ZIP defensiva contra path traversal, arquivos especiais e pacotes excessivos.
 - Contratos versionados para tipos, nulabilidade, campos obrigatórios, valores permitidos e chaves.
 - Pipeline inicial Bronze/Silver/Gold com fixtures reproduzíveis.
-- API Node.js, interface Next.js e aplicação analítica Streamlit com Plotly.
+- API Node.js, interface institucional Next.js e painel analítico Streamlit com Plotly.
 - Testes automatizados e workflows de CI para os componentes do projeto.
 
-## Painel analítico
+## Painel e relatórios
 
-A aplicação Streamlit permite explorar os metadados do catálogo CKAN após a execução da descoberta. Os gráficos previstos na implementação atual são:
+A interface Next.js atende à navegação institucional e à consulta pela API. O serviço Analytics utiliza Streamlit como painel analítico interativo, com gráficos Plotly, filtros globais e exportações. O relatório HTML autônomo permanece disponível como artefato complementar para impressão e distribuição. O painel apresenta:
 
-- distribuição dos recursos por formato;
-- conjuntos publicados por organização;
-- evolução temporal de criação dos conjuntos;
-- atualizações mensais do catálogo;
-- conjuntos com maior quantidade de recursos.
-
-Os filtros permitem segmentar por órgão, formato e busca textual. A tabela de resultados pode ser exportada em CSV.
+- indicadores do catálogo carregado e cobertura da descoberta;
+- distribuição de recursos por formato e conjuntos por órgão;
+- ranking de conjuntos por quantidade de recursos;
+- filtros globais por órgão, formato e texto;
+- explorador de conjuntos e recursos com acesso às URLs originais;
+- exportação dos recortes em CSV e Excel.
 
 <p align="center">
-  <img src="docs/assets/analytics-overview.svg" alt="Esquema visual do painel Streamlit com indicadores e gráficos de metadados" width="100%">
+  <img src="docs/assets/analytics-overview.svg" alt="Esquema visual do painel analítico de metadados" width="100%">
 </p>
 
-> A imagem acima documenta os tipos de visualização do painel; é um esquema ilustrativo, não uma captura da aplicação nem uma amostra de dados. Os gráficos em execução usam os metadados efetivamente presentes no manifesto local. Nesta etapa, eles não representam votos, candidatos, comparecimento ou abstenção.
+> A imagem acima é um esquema ilustrativo, não uma captura da aplicação nem uma amostra de dados. O painel usa somente metadados efetivamente presentes no manifesto local. Nesta etapa, não representam votos, candidatos, comparecimento ou abstenção.
 
-### Executar o painel
+### Executar o painel Streamlit
 
-```bash
+```powershell
 python scripts/discover_tse_catalog.py
 python -m pip install -r apps/analytics/requirements.txt
 streamlit run apps/analytics/app.py
 ```
 
-A descoberta exige acesso à internet. Sem o manifesto local, a aplicação informa como gerar o catálogo e não substitui dados ausentes por números fictícios.
+A aplicação abre em `http://localhost:8501`. A descoberta exige acesso à internet e grava o manifesto em `catalog/tse/datasets/`. Sem catálogo local, o painel informa como gerar a base, sem fabricar indicadores.
 
 ## Arquitetura
 
@@ -108,7 +106,7 @@ A descoberta exige acesso à internet. Sem o manifesto local, a aplicação info
 | Transformação | Python | Normalização e camadas Medallion |
 | API | Node.js | Catálogo e health checks |
 | Web | Next.js / TypeScript | Navegação e consulta |
-| Analytics | Streamlit / Plotly | Exploração interativa dos metadados |
+| Analytics | Streamlit / Plotly / Pandas | Painel interativo, filtros e exportações |
 
 A arquitetura representa o desenho lógico do sistema. Componentes marcados como planejados no roadmap não devem ser interpretados como serviços já implantados.
 
@@ -209,12 +207,14 @@ python scripts/download_tse_resources.py --help
 
 Consulte as opções e o manifesto gerado pela descoberta antes de iniciar downloads em lote.
 
-### Aplicação Streamlit
+### Painel analítico Streamlit
 
-```bash
+```powershell
 python -m pip install -r apps/analytics/requirements.txt
 streamlit run apps/analytics/app.py
 ```
+
+Acesse `http://localhost:8501`. Para executar a stack integrada com Docker, use `docker compose up --build`.
 
 ### Stack Docker — build local
 
@@ -242,7 +242,7 @@ Consulte [docs/development-stack.md](docs/development-stack.md) para a composiç
 DATALAB-BR/
 ├── apps/
 │   ├── web/                    # Next.js / TypeScript
-│   └── analytics/              # Streamlit / Plotly
+│   └── analytics/              # Painel Streamlit e relatório HTML complementar
 ├── services/
 │   └── api/                    # API Node.js
 ├── src/brasil_eleitoral/
@@ -271,7 +271,8 @@ DATALAB-BR/
 | Pipeline Bronze/Silver/Gold | Implementação inicial com fixtures normalizadas |
 | API de catálogo e health checks | Implementada; 4 testes automatizados aprovados no GitHub Actions |
 | Interface Next.js | Implementação inicial |
-| Streamlit com gráficos Plotly | Implementado para metadados do catálogo |
+| Painel analítico Streamlit | Implementado para metadados CKAN; execução local pendente |
+| Relatórios HTML autônomos | Gerador complementar implementado |
 | Ingestão integral de dados eleitorais reais | Pendente |
 | Indicadores eleitorais Gold | Pendente |
 | Mapas oficiais por UF | Pendente |
@@ -308,7 +309,8 @@ DATALAB-BR/
 - [Quality gates de ingestão e evidências](docs/quality-gates-ingestion.md)
 - [Stack de desenvolvimento](docs/development-stack.md)
 - [Execução das imagens publicadas no GHCR](docs/ghcr-deployment.md)
-- [Aplicação Streamlit](docs/streamlit.md)
+- [Painel analítico Streamlit](docs/streamlit-dashboard.md)
+- [Relatórios HTML complementares](docs/html-reports.md)
 
 ## Licença
 
