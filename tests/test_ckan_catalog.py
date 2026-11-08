@@ -1,3 +1,4 @@
+import hashlib
 import json
 import tempfile
 import unittest
@@ -30,7 +31,18 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(client.calls,[(0,1),(1,1)])
     def test_resume_uses_checkpoint(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp); (root/".ckan_checkpoint.json").write_text(json.dumps({"next_start":1,"total":2,"seen":{"resultado-2022":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}))
+            root = Path(tmp)
+            cached = root / "resultado-2022.json"
+            cached.write_text(json.dumps({"name": "resultado-2022"}), encoding="utf-8")
+            digest = hashlib.sha256(cached.read_bytes()).hexdigest()
+            (root / ".ckan_checkpoint.json").write_text(
+                json.dumps({
+                    "next_start": 1,
+                    "total": 2,
+                    "seen": {"resultado-2022": digest},
+                }),
+                encoding="utf-8",
+            )
             client=FakeClient(); result=discover_catalog(client,root,page_size=1)
             self.assertEqual(client.calls,[(1,1)]); self.assertEqual(result["dataset_count"],2)
     def test_skips_path_traversal_slug(self):
