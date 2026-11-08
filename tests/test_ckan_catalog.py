@@ -23,6 +23,33 @@ class CatalogTests(unittest.TestCase):
     def test_normalize_keeps_license_and_resource_metadata(self):
         item=normalize_dataset({"name":"x","license_id":"cc-by","resources":[{"format":"csv"}]},source_url="https://tse.test",extracted_at="2026-01-01T00:00:00+00:00")
         self.assertEqual(item["license_id"],"cc-by"); self.assertEqual(item["resources"][0]["format"],"CSV")
+    def test_normalize_rejects_malformed_nested_metadata(self):
+        with self.assertRaisesRegex(ValueError, "resources"):
+            normalize_dataset(
+                {"name": "broken", "resources": [None]},
+                source_url="https://tse.test",
+                extracted_at="2026-01-01T00:00:00+00:00",
+            )
+
+    def test_discovery_skips_malformed_dataset_without_aborting_page(self):
+        class MixedClient(FakeClient):
+            def search_page(self, *, start, rows):
+                return {
+                    "count": 2,
+                    "results": [
+                        {"name": "malformed", "resources": [None]},
+                        {"name": "valid-dataset", "resources": []},
+                    ][start:start + rows],
+                }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = discover_catalog(MixedClient(), root, page_size=2)
+            self.assertEqual(result["dataset_count"], 1)
+            self.assertFalse(result["complete"])
+            self.assertTrue((root / "valid-dataset.json").is_file())
+            self.assertFalse((root / "malformed.json").exists())
+
     def test_discovers_all_pages_and_writes_manifest(self):
         with tempfile.TemporaryDirectory() as tmp:
             client=FakeClient(); result=discover_catalog(client,Path(tmp),page_size=1)
