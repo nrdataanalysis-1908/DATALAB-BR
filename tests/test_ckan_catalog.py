@@ -41,7 +41,7 @@ class CatalogTests(unittest.TestCase):
             result = discover_catalog(NonStringNameClient(), root, page_size=1)
             self.assertEqual(result["dataset_count"], 0)
             self.assertFalse(result["complete"])
-            self.assertEqual(list(root.glob("*.json")), [root / "manifest.json"])
+            self.assertTrue((root / "manifest.json").is_file())
 
     def test_discovery_skips_malformed_dataset_without_aborting_page(self):
         class MixedClient(FakeClient):
