@@ -85,7 +85,12 @@ def _load_checkpoint(path: Path) -> dict[str, Any]:
 def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 100,
                      checkpoint_path: Path | None = None,
                      progress: Callable[[int, int], None] | None = None) -> dict[str, Any]:
-    if page_size < 1 or page_size > 1000: raise ValueError("page_size must be between 1 and 1000")
+    if (
+        isinstance(page_size, bool)
+        or not isinstance(page_size, int)
+        or not 1 <= page_size <= 1000
+    ):
+        raise ValueError("page_size must be an integer between 1 and 1000")
     checkpoint_path = checkpoint_path or output_dir / ".ckan_checkpoint.json"
     output_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = _load_checkpoint(checkpoint_path)
