@@ -70,6 +70,21 @@ class MedallionTests(unittest.TestCase):
             with self.assertRaises(MedallionError):
                 silver_normalize_csv(source, root / "silver.csv")
 
+    def test_silver_and_gold_reject_in_place_transformations(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            silver_source = root / "silver-source.csv"
+            silver_source.write_text("state,votes\\nMG,10\\n", encoding="utf-8")
+            with self.assertRaisesRegex(MedallionError, "different files"):
+                silver_normalize_csv(silver_source, silver_source)
+
+            gold_source = root / "gold-source.csv"
+            gold_source.write_text("state,votes\\nMG,10\\n", encoding="utf-8")
+            with self.assertRaisesRegex(MedallionError, "different files"):
+                gold_aggregate_results(
+                    gold_source, gold_source, dimensions=("state",)
+                )
+
     def test_gold_aggregates_with_explicit_grain(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
