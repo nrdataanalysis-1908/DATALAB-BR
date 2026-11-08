@@ -127,6 +127,11 @@ def silver_normalize_csv(source: Path, destination: Path, *,
             for row in reader:
                 if None in row:
                     raise MedallionError(f"Row {rows + 2} has more columns than the header")
+                missing = [name for name in reader.fieldnames if row.get(name) is None]
+                if missing:
+                    raise MedallionError(
+                        f"Row {rows + 2} has fewer columns than the header: {missing}"
+                    )
                 writer.writerow({headers[index]: (row.get(reader.fieldnames[index]) or "").strip()
                                  for index in range(len(headers))})
                 rows += 1
