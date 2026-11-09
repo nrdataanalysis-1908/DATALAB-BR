@@ -132,7 +132,7 @@ def silver_normalize_csv(source: Path, destination: Path, *,
         raise FileNotFoundError(source)
     if (
         not isinstance(delimiter, str) or len(delimiter) != 1
-        or delimiter in {"\\r", "\\n", "\\x00"}
+        or delimiter in {"\r", "\n", "\x00"}
     ):
         raise MedallionError("delimiter must be a single non-newline character")
     if not isinstance(encoding, str) or not encoding.strip():
