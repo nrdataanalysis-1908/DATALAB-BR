@@ -21,8 +21,8 @@ class ContractCsvEdgeCaseTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / "results.csv"
-            source.write_text("state,votes\\nMG,10\\n", encoding="utf-8")
-            for delimiter in ("\\r", "\\n", "\\x00"):
+            source.write_text("state,votes\nMG,10\n", encoding="utf-8")
+            for delimiter in ("\r", "\n", "\x00"):
                 with self.subTest(delimiter=repr(delimiter)):
                     with self.assertRaisesRegex(
                         ValueError, "single non-newline character"
@@ -40,7 +40,7 @@ class ContractCsvEdgeCaseTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / "results.csv"
-            source.write_text("state,votes\\nMG\\n", encoding="utf-8")
+            source.write_text("state,votes\nMG\n", encoding="utf-8")
 
             report = validate_csv(source, contract)
 
