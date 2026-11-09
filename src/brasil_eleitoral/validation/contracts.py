@@ -112,6 +112,11 @@ def validate_records(records: Iterable[dict[str, Any]], contract: DataContract) 
             report.errors.append({"row": row_number, "field": None, "code": "invalid_record",
                                   "message": "Record must be an object"})
             continue
+        for field_name in record:
+            if field_name not in names:
+                report.errors.append({
+                    "row": row_number, "field": field_name, "code": "unexpected_field"
+                })
         for item in contract.fields:
             value = record.get(item.name)
             if item.name not in record:
