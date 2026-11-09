@@ -83,7 +83,12 @@ class CKANClient:
         for attempt in range(self.retries + 1):
             try:
                 with urlopen(request, timeout=self.timeout) as response:
-                    payload = json.loads(response.read().decode("utf-8"))
+                    body = response.read(_MAX_RESPONSE_BYTES + 1)
+                    if len(body) > _MAX_RESPONSE_BYTES:
+                        raise CKANError(
+                            f"CKAN response exceeds the {_MAX_RESPONSE_BYTES}-byte safety limit"
+                        )
+                    payload = json.loads(body.decode("utf-8"))
                 if not isinstance(payload, dict) or payload.get("success") is not True:
                     detail = payload.get("error", payload) if isinstance(payload, dict) else payload
                     raise CKANError(f"CKAN action {name!r} returned success=false: {detail}")
