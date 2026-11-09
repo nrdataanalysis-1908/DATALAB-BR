@@ -130,6 +130,7 @@ def silver_normalize_csv(source: Path, destination: Path, *,
         raise MedallionError("Source and destination must be different files")
     if not source.is_file():
         raise FileNotFoundError(source)
+    source_digest = sha256_file(source)
     if (
         not isinstance(delimiter, str) or len(delimiter) != 1
         or delimiter in {"\\r", "\\n", "\\x00"}
@@ -166,6 +167,8 @@ def silver_normalize_csv(source: Path, destination: Path, *,
                 rows += 1
             outgoing.flush()
             os.fsync(outgoing.fileno())
+        if sha256_file(source) != source_digest:
+            raise MedallionError("Source changed during Silver transformation")
         os.replace(temporary, destination)
     except Exception:
         try:
@@ -174,7 +177,7 @@ def silver_normalize_csv(source: Path, destination: Path, *,
             pass
         raise
     metadata = {"layer": "silver", "rows": rows, "columns": headers,
-                "source_sha256": sha256_file(source), "output_sha256": sha256_file(destination)}
+                "source_sha256": source_digest, "output_sha256": sha256_file(destination)}
     _atomic_json(destination.with_suffix(destination.suffix + ".metadata.json"), metadata)
     return {"path": str(destination), **metadata}
 
