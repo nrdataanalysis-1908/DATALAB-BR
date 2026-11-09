@@ -189,9 +189,20 @@ def gold_aggregate_results(source: Path, destination: Path, *,
     source, destination = Path(source), Path(destination)
     if source.resolve() == destination.resolve():
         raise MedallionError("Source and destination must be different files")
-    dimensions = tuple(dimensions)
-    if not dimensions or len(set(dimensions)) != len(dimensions):
-        raise MedallionError("Provide unique, non-empty aggregation dimensions")
+    if isinstance(dimensions, (str, bytes)):
+        raise MedallionError("Dimensions must be an iterable of column names, not a string")
+    try:
+        dimensions = tuple(dimensions)
+    except TypeError as exc:
+        raise MedallionError("Dimensions must be an iterable of column names") from exc
+    if (
+        not dimensions
+        or any(not isinstance(name, str) or not name or name != name.strip() for name in dimensions)
+        or len(set(dimensions)) != len(dimensions)
+    ):
+        raise MedallionError("Provide unique, non-empty aggregation dimension names")
+    if not isinstance(metric, str) or not metric or metric != metric.strip():
+        raise MedallionError("Metric must be a non-empty column name")
     if metric in dimensions:
         raise MedallionError("Metric cannot also be an aggregation dimension")
     source_digest = sha256_file(source)
