@@ -63,6 +63,12 @@ def bronze_ingest(source: Path, root: Path, *, source_id: str, dataset: str,
     destination_dir.mkdir(parents=True, exist_ok=True)
     destination = destination_dir / f"{digest}{source.suffix.lower()}"
     metadata_path = destination.with_suffix(destination.suffix + ".metadata.json")
+    if destination.is_symlink():
+        raise MedallionError("Existing Bronze object must not be a symbolic link")
+    if destination.exists() and not destination.is_file():
+        raise MedallionError("Existing Bronze object must be a regular file")
+    if metadata_path.is_symlink():
+        raise MedallionError("Existing Bronze metadata must not be a symbolic link")
     already_present = destination.exists()
     if already_present and sha256_file(destination) != digest:
         raise MedallionError("Existing Bronze object does not match its content hash")
@@ -87,7 +93,21 @@ def bronze_ingest(source: Path, root: Path, *, source_id: str, dataset: str,
         "execution_id": execution_id, "ingested_at": datetime.now(timezone.utc).isoformat(),
         "immutable": True,
     }
-    if not metadata_path.exists():
+    if metadata_path.exists():
+        try:
+            existing_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise MedallionError("Existing Bronze metadata is unreadable") from exc
+        expected_fields = {
+            "layer": "bronze", "source_id": source_id, "dataset": dataset,
+            "stored_filename": destination.name, "sha256": digest,
+            "size_bytes": destination.stat().st_size, "immutable": True,
+        }
+        if not isinstance(existing_metadata, dict) or any(
+            existing_metadata.get(key) != value for key, value in expected_fields.items()
+        ):
+            raise MedallionError("Existing Bronze metadata does not match its content object")
+    else:
         _atomic_json(metadata_path, metadata)
     return {"path": str(destination), "metadata_path": str(metadata_path),
             "sha256": digest, "size_bytes": destination.stat().st_size,
