@@ -12,7 +12,7 @@ class GoldProvenanceTests(unittest.TestCase):
             root = Path(tmp)
             source = root / "silver.csv"
             destination = root / "gold.csv"
-            source.write_text("state,votes\\nMG,10\\n", encoding="utf-8")
+            source.write_text("state,votes\nMG,10\n", encoding="utf-8")
             destination.write_text("previous-complete-output", encoding="utf-8")
             original_digest = medallion.sha256_file
             mutated = False
@@ -22,7 +22,7 @@ class GoldProvenanceTests(unittest.TestCase):
                 digest = original_digest(path)
                 if Path(path) == source and not mutated:
                     mutated = True
-                    source.write_text("state,votes\\nSP,20\\n", encoding="utf-8")
+                    source.write_text("state,votes\nSP,20\n", encoding="utf-8")
                 return digest
 
             medallion.sha256_file = change_after_initial_hash

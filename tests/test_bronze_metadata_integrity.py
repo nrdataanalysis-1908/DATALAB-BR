@@ -9,7 +9,7 @@ from brasil_eleitoral.transformation.medallion import MedallionError, bronze_ing
 class BronzeMetadataIntegrityTests(unittest.TestCase):
     def _ingest(self, root):
         source = root / "source.csv"
-        source.write_text("state,votes\\nMG,10\\n", encoding="utf-8")
+        source.write_text("state,votes\nMG,10\n", encoding="utf-8")
         result = bronze_ingest(source, root / "lake", source_id="tse", dataset="results")
         return source, Path(result["path"]), Path(result["metadata_path"])
 
