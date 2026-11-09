@@ -10,7 +10,7 @@ class GoldArgumentTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
         self.source = self.root / "silver.csv"
-        self.source.write_text("state,votes\\nMG,10\\n", encoding="utf-8")
+        self.source.write_text("state,votes\nMG,10\n", encoding="utf-8")
 
     def tearDown(self):
         self.tmp.cleanup()

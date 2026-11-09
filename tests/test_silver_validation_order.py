@@ -10,7 +10,7 @@ class SilverValidationOrderTests(unittest.TestCase):
     def test_invalid_delimiter_fails_before_source_hashing(self):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "raw.csv"
-            source.write_text("state,votes\\nMG,10\\n", encoding="utf-8")
+            source.write_text("state,votes\nMG,10\n", encoding="utf-8")
             original = medallion.sha256_file
             medallion.sha256_file = lambda path: (_ for _ in ()).throw(AssertionError("hash should not run"))
             try:

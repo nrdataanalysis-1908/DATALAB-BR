@@ -10,8 +10,8 @@ class SilverCsvOptionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "raw.csv"
-            source.write_text("state,votes\\nMG,10\\n", encoding="utf-8")
-            for delimiter in ("", "::", "\\r", "\\n", "\\x00", None):
+            source.write_text("state,votes\nMG,10\n", encoding="utf-8")
+            for delimiter in ("", "::", "\r", "\n", "\x00", None):
                 with self.subTest(delimiter=delimiter):
                     destination = root / "silver.csv"
                     with self.assertRaisesRegex(MedallionError, "delimiter"):
@@ -22,7 +22,7 @@ class SilverCsvOptionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "raw.csv"
-            source.write_text("state,votes\\nMG,10\\n", encoding="utf-8")
+            source.write_text("state,votes\nMG,10\n", encoding="utf-8")
             with self.assertRaisesRegex(MedallionError, "encoding"):
                 silver_normalize_csv(source, root / "silver.csv", encoding=" ")
 
