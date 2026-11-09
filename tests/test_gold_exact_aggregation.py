@@ -12,7 +12,7 @@ class GoldExactAggregationTests(unittest.TestCase):
             source = root / "silver.csv"
             destination = root / "gold.csv"
             source.write_text(
-                "state,votes\\nMG,12345678901234567890123456789\\nMG,2\\n",
+                "state,votes\nMG,12345678901234567890123456789\nMG,2\n",
                 encoding="utf-8",
             )
             gold_aggregate_results(source, destination, dimensions=("state",))

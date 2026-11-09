@@ -11,7 +11,7 @@ class CKANClientLimitsTests(unittest.TestCase):
                     CKANClient("https://example.test", **options)
 
     def test_rejects_control_characters_in_user_agent(self):
-        for user_agent in ("DataLab\\nInjected: value", "DataLab\\rInjected: value", "DataLab\\x7f"):
+        for user_agent in ("DataLab\nInjected: value", "DataLab\rInjected: value", "DataLab\x7f"):
             with self.subTest(user_agent=user_agent):
                 with self.assertRaisesRegex(ValueError, "control characters"):
                     CKANClient("https://example.test", user_agent=user_agent)

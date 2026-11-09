@@ -101,7 +101,7 @@ class CatalogTests(unittest.TestCase):
     def test_retries_transient_http_error(self,sleep,urlopen):
         from urllib.error import HTTPError
         import io
-        response=type("Response",(),{"__enter__":lambda s:s,"__exit__":lambda *a:None,"read":lambda s:b'{"success":true,"result":{"ok":true}}'})()
+        response=type("Response",(),{"__enter__":lambda s:s,"__exit__":lambda *a:None,"read":lambda s,size=-1:(b'{"success":true,"result":{"ok":true}}' if size < 0 else b'{"success":true,"result":{"ok":true}}'[:size])})()
         urlopen.side_effect=[HTTPError("https://x",503,"busy",{},io.BytesIO()),response]
         client=CKANClient("https://x",retries=1,backoff=0)
         self.assertEqual(client.action("package_search"),{"ok":True}); self.assertEqual(urlopen.call_count,2)
