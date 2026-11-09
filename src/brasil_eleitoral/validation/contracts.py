@@ -261,6 +261,8 @@ def load_contract(path: Path) -> DataContract:
             raise ValueError(f"Contract field at index {index} requires a non-empty name")
         if not isinstance(dtype, str):
             raise ValueError(f"Contract field {field_name!r} requires a string type")
+        if dtype not in _TYPE_CHECKS:
+            raise ValueError(f"Unsupported dtype {dtype!r} for field {field_name!r}")
         if not isinstance(nullable, bool):
             raise ValueError(f"Contract field {field_name!r} nullable must be boolean")
         if not isinstance(allowed_values, list):
@@ -299,6 +301,8 @@ def load_contract(path: Path) -> DataContract:
         isinstance(maximum_rows, bool) or not isinstance(maximum_rows, int) or maximum_rows < 0
     ):
         raise ValueError("Contract maximum_rows must be a non-negative integer or null")
+    if maximum_rows is not None and maximum_rows < minimum_rows:
+        raise ValueError("Contract maximum_rows cannot be lower than minimum_rows")
 
     return DataContract(
         name=name, version=version, fields=tuple(fields),
