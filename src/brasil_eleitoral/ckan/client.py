@@ -101,7 +101,10 @@ class CKANClient:
                 last_error = exc
                 if attempt >= self.retries:
                     break
-            delay = self.backoff * (2 ** attempt) + random.uniform(0, self.backoff / 4)
+            delay = min(
+                self.backoff * (2 ** attempt) + random.uniform(0, self.backoff / 4),
+                _MAX_BACKOFF,
+            )
             LOG.warning("CKAN request failed (%s); retry %d/%d in %.2fs", last_error, attempt + 1, self.retries, delay)
             time.sleep(delay)
         raise CKANError(f"CKAN action {name!r} failed after {self.retries + 1} attempts: {last_error}") from last_error
