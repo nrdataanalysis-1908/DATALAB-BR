@@ -194,6 +194,7 @@ def gold_aggregate_results(source: Path, destination: Path, *,
         raise MedallionError("Provide unique, non-empty aggregation dimensions")
     if metric in dimensions:
         raise MedallionError("Metric cannot also be an aggregation dimension")
+    source_digest = sha256_file(source)
     totals: dict[tuple[str, ...], Decimal] = defaultdict(Decimal)
     with source.open("r", encoding=encoding, newline="") as stream:
         reader = csv.DictReader(stream)
@@ -218,6 +219,8 @@ def gold_aggregate_results(source: Path, destination: Path, *,
             if not value.is_finite() or value < 0:
                 raise MedallionError(f"Invalid non-negative metric at row {row_number}")
             totals[key] += value
+    if sha256_file(source) != source_digest:
+        raise MedallionError("Source changed during Gold aggregation")
     destination.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=".gold.", suffix=".csv", dir=destination.parent)
     os.close(fd)
@@ -237,7 +240,7 @@ def gold_aggregate_results(source: Path, destination: Path, *,
             pass
         raise
     metadata = {"layer": "gold", "dimensions": list(dimensions), "metric": metric,
-                "groups": len(totals), "source_sha256": sha256_file(source),
+                "groups": len(totals), "source_sha256": source_digest,
                 "output_sha256": sha256_file(destination)}
     _atomic_json(destination.with_suffix(destination.suffix + ".metadata.json"), metadata)
     return {"path": str(destination), **metadata}
