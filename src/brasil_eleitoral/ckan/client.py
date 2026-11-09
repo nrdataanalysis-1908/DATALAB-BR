@@ -13,6 +13,10 @@ from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 LOG = logging.getLogger(__name__)
+_MAX_TIMEOUT = 600.0
+_MAX_RETRIES = 10
+_MAX_BACKOFF = 300.0
+_MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 
 
 def _is_finite_number(value: Any) -> bool:
@@ -48,18 +52,24 @@ class CKANClient:
             raise ValueError("base_url must be an absolute HTTP(S) URL without credentials, query or fragment")
         if (
             isinstance(timeout, bool) or not isinstance(timeout, (int, float))
-            or not _is_finite_number(timeout) or timeout <= 0
+            or not _is_finite_number(timeout) or timeout <= 0 or timeout > _MAX_TIMEOUT
         ):
-            raise ValueError("timeout must be a finite positive number")
-        if isinstance(retries, bool) or not isinstance(retries, int) or retries < 0:
-            raise ValueError("retries must be a non-negative integer")
+            raise ValueError(f"timeout must be finite, positive and <= {_MAX_TIMEOUT:g} seconds")
+        if (
+            isinstance(retries, bool) or not isinstance(retries, int)
+            or retries < 0 or retries > _MAX_RETRIES
+        ):
+            raise ValueError(f"retries must be an integer between 0 and {_MAX_RETRIES}")
         if (
             isinstance(backoff, bool) or not isinstance(backoff, (int, float))
-            or not _is_finite_number(backoff) or backoff < 0
+            or not _is_finite_number(backoff) or backoff < 0 or backoff > _MAX_BACKOFF
         ):
-            raise ValueError("backoff must be a finite non-negative number")
-        if not isinstance(user_agent, str) or not user_agent.strip():
-            raise ValueError("user_agent must be a non-empty string")
+            raise ValueError(f"backoff must be finite, non-negative and <= {_MAX_BACKOFF:g} seconds")
+        if (
+            not isinstance(user_agent, str) or not user_agent.strip()
+            or any(ord(character) < 0x20 or ord(character) == 0x7F for character in user_agent)
+        ):
+            raise ValueError("user_agent must be non-empty and contain no control characters")
 
         self.base_url = base_url.rstrip("/")
         self.timeout, self.retries, self.backoff, self.user_agent = timeout, retries, backoff, user_agent
