@@ -130,7 +130,6 @@ def silver_normalize_csv(source: Path, destination: Path, *,
         raise MedallionError("Source and destination must be different files")
     if not source.is_file():
         raise FileNotFoundError(source)
-    source_digest = sha256_file(source)
     if (
         not isinstance(delimiter, str) or len(delimiter) != 1
         or delimiter in {"\\r", "\\n", "\\x00"}
@@ -138,6 +137,7 @@ def silver_normalize_csv(source: Path, destination: Path, *,
         raise MedallionError("delimiter must be a single non-newline character")
     if not isinstance(encoding, str) or not encoding.strip():
         raise MedallionError("encoding must be a non-empty codec name")
+    source_digest = sha256_file(source)
     destination.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=".silver.", suffix=".csv", dir=destination.parent)
     os.close(fd)
