@@ -10,7 +10,7 @@ import shutil
 import tempfile
 from collections import defaultdict
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path
 from typing import Iterable
 
@@ -218,7 +218,17 @@ def gold_aggregate_results(source: Path, destination: Path, *,
                 raise MedallionError(f"Invalid {metric} at row {row_number}") from exc
             if not value.is_finite() or value < 0:
                 raise MedallionError(f"Invalid non-negative metric at row {row_number}")
-            totals[key] += value
+            current = totals[key]
+            required_precision = (
+                max(current.adjusted(), value.adjusted())
+                - min(current.as_tuple().exponent, value.as_tuple().exponent)
+                + 2
+            )
+            if required_precision > 10000:
+                raise MedallionError("Metric precision exceeds the exact aggregation limit")
+            with localcontext() as context:
+                context.prec = max(context.prec, required_precision)
+                totals[key] = current + value
     if sha256_file(source) != source_digest:
         raise MedallionError("Source changed during Gold aggregation")
     destination.parent.mkdir(parents=True, exist_ok=True)
