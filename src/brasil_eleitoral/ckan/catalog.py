@@ -162,7 +162,21 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
     extracted_at = datetime.now(timezone.utc).isoformat()
     while total is None or start < total:
         page = client.search_page(start=start, rows=page_size)
-        total, results = int(page.get("count", 0)), page["results"]
+        if not isinstance(page, dict):
+            raise ValueError("CKAN page response must be an object")
+        remote_count = page.get("count")
+        results = page.get("results")
+        if (
+            isinstance(remote_count, bool)
+            or not isinstance(remote_count, int)
+            or remote_count < 0
+        ):
+            raise ValueError("CKAN page response count must be a non-negative integer")
+        if not isinstance(results, list):
+            raise ValueError("CKAN page response results must be an array")
+        if len(results) > page_size:
+            raise ValueError("CKAN page response exceeds the requested page size")
+        total = remote_count
         if not results: break
         for dataset in results:
             if not isinstance(dataset, dict) or not dataset.get("name"):
