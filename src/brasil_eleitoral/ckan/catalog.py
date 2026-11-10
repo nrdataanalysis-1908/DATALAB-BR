@@ -95,7 +95,7 @@ def _load_checkpoint(path: Path) -> dict[str, Any]:
         return default
     try:
         loaded = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
         LOG.warning("Ignoring invalid checkpoint %s: %s", path, exc)
         return default
 
