@@ -164,7 +164,9 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
         start = 0
     seen = verified_seen
     extracted_at = datetime.now(timezone.utc).isoformat()
-    while total is None or start < total:
+    # Probe the current remote offset even when the checkpoint was previously complete;
+    # CKAN catalogs can grow between runs without invalidating cached local datasets.
+    while True:
         page = client.search_page(start=start, rows=page_size)
         if not isinstance(page, dict):
             raise ValueError("CKAN page response must be an object")
