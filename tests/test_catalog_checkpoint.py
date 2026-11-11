@@ -147,5 +147,49 @@ class CheckpointRecoveryTests(unittest.TestCase):
             self.assertEqual(external.read_text(encoding="utf-8"), external_payload)
 
 
+    def test_completed_checkpoint_probes_for_new_remote_datasets(self):
+        class Client:
+            base_url = "https://dadosabertos.tse.jus.br"
+
+            def __init__(self, pages):
+                self.pages = pages
+                self.calls = []
+
+            def search_page(self, *, start, rows):
+                self.calls.append((start, rows))
+                return self.pages.get(
+                    start,
+                    {"count": 2, "results": []},
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first_client = Client({
+                0: {
+                    "count": 1,
+                    "results": [{"name": "first-dataset", "resources": []}],
+                },
+                1: {"count": 1, "results": []},
+            })
+            first_manifest = discover_catalog(first_client, root, page_size=1)
+
+            self.assertTrue(first_manifest["complete"])
+            self.assertEqual(first_manifest["dataset_count"], 1)
+
+            updated_client = Client({
+                1: {
+                    "count": 2,
+                    "results": [{"name": "new-dataset", "resources": []}],
+                },
+                2: {"count": 2, "results": []},
+            })
+            updated_manifest = discover_catalog(updated_client, root, page_size=1)
+
+            self.assertEqual(updated_client.calls, [(1, 1), (2, 1)])
+            self.assertEqual(updated_manifest["dataset_count"], 2)
+            self.assertTrue(updated_manifest["complete"])
+            self.assertTrue((root / "new-dataset.json").is_file())
+
+
 if __name__ == "__main__":
     unittest.main()
