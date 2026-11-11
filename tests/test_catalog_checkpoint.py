@@ -191,5 +191,20 @@ class CheckpointRecoveryTests(unittest.TestCase):
             self.assertTrue((root / "new-dataset.json").is_file())
 
 
+    def test_catalog_rejects_results_beyond_reported_remote_count(self):
+        class Client:
+            base_url = "https://dadosabertos.tse.jus.br"
+
+            def search_page(self, *, start, rows):
+                return {
+                    "count": 0,
+                    "results": [{"name": "unexpected-dataset", "resources": []}],
+                }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "beyond the reported total"):
+                discover_catalog(Client(), Path(tmp), page_size=10)
+
+
 if __name__ == "__main__":
     unittest.main()
