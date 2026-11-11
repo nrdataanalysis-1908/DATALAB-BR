@@ -89,8 +89,12 @@ def normalize_dataset(dataset: dict[str, Any], *, source_url: str, extracted_at:
         "source_url": source_url,
         "extracted_at": extracted_at,
     }
+
 def _load_checkpoint(path: Path) -> dict[str, Any]:
     default: dict[str, Any] = {"next_start": 0, "total": None, "seen": {}}
+    if path.is_symlink():
+        LOG.warning("Ignoring symbolic-link checkpoint: %s", path)
+        return default
     if not path.exists():
         return default
     try:
