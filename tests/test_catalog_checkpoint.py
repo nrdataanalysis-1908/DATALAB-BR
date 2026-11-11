@@ -175,6 +175,7 @@ class CheckpointRecoveryTests(unittest.TestCase):
 
             self.assertTrue(first_manifest["complete"])
             self.assertEqual(first_manifest["dataset_count"], 1)
+            self.assertEqual(first_client.calls, [(0, 1)])
 
             updated_client = Client({
                 1: {
@@ -185,7 +186,7 @@ class CheckpointRecoveryTests(unittest.TestCase):
             })
             updated_manifest = discover_catalog(updated_client, root, page_size=1)
 
-            self.assertEqual(updated_client.calls, [(1, 1), (2, 1)])
+            self.assertEqual(updated_client.calls, [(1, 1)])
             self.assertEqual(updated_manifest["dataset_count"], 2)
             self.assertTrue(updated_manifest["complete"])
             self.assertTrue((root / "new-dataset.json").is_file())
