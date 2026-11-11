@@ -80,7 +80,6 @@ class CheckpointRecoveryTests(unittest.TestCase):
                 ["valid-dataset"],
             )
 
-
     def test_non_utf8_checkpoint_is_ignored_and_discovery_restarts(self):
         class Client:
             base_url = "https://dadosabertos.tse.jus.br"
@@ -98,7 +97,7 @@ class CheckpointRecoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / ".ckan_checkpoint.json").write_bytes(
-                b'{"next_start": 1, "seen": "\\xff"}'
+                b'{"next_start": 1, "seen": "' + bytes([0xFF]) + b'"}'
             )
             client = Client()
             manifest = discover_catalog(client, root, page_size=10)
