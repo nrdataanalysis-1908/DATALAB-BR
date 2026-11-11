@@ -184,6 +184,8 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
             raise ValueError("CKAN page response exceeds the requested page size")
         total = remote_count
         if not results: break
+        if start >= total:
+            raise ValueError("CKAN page returned results beyond the reported total")
         for dataset in results:
             if not isinstance(dataset, dict) or not dataset.get("name"):
                 LOG.warning("Skipping malformed CKAN dataset at offset %d", start); continue
