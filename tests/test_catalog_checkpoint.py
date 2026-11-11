@@ -107,6 +107,45 @@ class CheckpointRecoveryTests(unittest.TestCase):
             self.assertTrue(manifest["complete"])
             self.assertTrue((root / "utf8-recovered.json").is_file())
 
+    def test_symlinked_checkpoint_is_ignored_without_following_target(self):
+        class Client:
+            base_url = "https://dadosabertos.tse.jus.br"
+
+            def __init__(self):
+                self.calls = []
+
+            def search_page(self, *, start, rows):
+                self.calls.append((start, rows))
+                records = [
+                    {"name": "first-dataset", "resources": []},
+                    {"name": "second-dataset", "resources": []},
+                ]
+                return {"count": 2, "results": records[start:start + rows]}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            external = root.parent / f"{root.name}-external-checkpoint.json"
+            external_payload = json.dumps({
+                "next_start": 1,
+                "total": 2,
+                "seen": {},
+            })
+            external.write_text(external_payload, encoding="utf-8")
+            checkpoint = root / ".ckan_checkpoint.json"
+            try:
+                checkpoint.symlink_to(external)
+            except (OSError, NotImplementedError) as exc:
+                self.skipTest(f"symbolic links are unavailable: {exc}")
+
+            client = Client()
+            manifest = discover_catalog(client, root, page_size=1)
+
+            self.assertEqual(client.calls, [(0, 1), (1, 1)])
+            self.assertEqual(manifest["dataset_count"], 2)
+            self.assertTrue(manifest["complete"])
+            self.assertFalse(checkpoint.is_symlink())
+            self.assertEqual(external.read_text(encoding="utf-8"), external_payload)
+
 
 if __name__ == "__main__":
     unittest.main()
