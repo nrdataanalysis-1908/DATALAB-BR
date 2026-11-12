@@ -210,7 +210,8 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
         _atomic_json(checkpoint_path, checkpoint)
         if progress: progress(start, total)
         LOG.info("Catalog discovery: %d/%d datasets", start, total)
-        if len(results) < page_size: break
+        # Continue after short non-empty pages while the remote count says
+        # additional offsets remain; some CKAN deployments underfill pages.
     manifest = {"source": "Tribunal Superior Eleitoral", "source_url": client.base_url,
         "api": f"{client.base_url}/api/3/action/", "action": "package_search",
         "discovered_at": datetime.now(timezone.utc).isoformat(), "dataset_count": len(seen),
