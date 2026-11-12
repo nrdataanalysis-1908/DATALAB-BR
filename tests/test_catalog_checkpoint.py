@@ -287,5 +287,43 @@ class CheckpointRecoveryTests(unittest.TestCase):
             self.assertEqual(checkpoint["source_url"], replacement.base_url)
 
 
+    def test_completed_checkpoint_restarts_when_remote_catalog_shrinks(self):
+        class Client:
+            base_url = "https://dadosabertos.tse.jus.br"
+
+            def __init__(self, count, records):
+                self.count = count
+                self.records = records
+                self.calls = []
+
+            def search_page(self, *, start, rows):
+                self.calls.append((start, rows))
+                return {
+                    "count": self.count,
+                    "results": self.records[start:start + rows],
+                }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            initial_records = [
+                {"name": "first-dataset", "resources": []},
+                {"name": "removed-dataset", "resources": []},
+            ]
+            initial = Client(2, initial_records)
+            first_manifest = discover_catalog(initial, root, page_size=1)
+            self.assertTrue(first_manifest["complete"])
+
+            reduced = Client(1, [{"name": "first-dataset", "resources": []}])
+            manifest = discover_catalog(reduced, root, page_size=1)
+
+            self.assertEqual(reduced.calls, [(2, 1), (0, 1)])
+            self.assertEqual(manifest["dataset_count"], 1)
+            self.assertTrue(manifest["complete"])
+            self.assertEqual(
+                [item["name"] for item in manifest["datasets"]],
+                ["first-dataset"],
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
