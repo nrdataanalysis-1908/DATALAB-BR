@@ -114,6 +114,7 @@ def _load_checkpoint(path: Path) -> dict[str, Any]:
         and (total is None or (
             isinstance(total, int) and not isinstance(total, bool) and total >= 0
         ))
+        and (total is not None or next_start == 0)
         and isinstance(seen, dict)
         and (total is None or next_start <= total)
         and all(
