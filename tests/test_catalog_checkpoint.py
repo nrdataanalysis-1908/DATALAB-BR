@@ -225,5 +225,32 @@ class CheckpointRecoveryTests(unittest.TestCase):
                 discover_catalog(Client(), Path(tmp), page_size=2)
 
 
+    def test_catalog_continues_after_a_nonempty_short_page(self):
+        class Client:
+            base_url = "https://dadosabertos.tse.jus.br"
+
+            def __init__(self):
+                self.calls = []
+
+            def search_page(self, *, start, rows):
+                self.calls.append((start, rows))
+                pages = {
+                    0: [{"name": "first-dataset", "resources": []}],
+                    1: [
+                        {"name": "second-dataset", "resources": []},
+                        {"name": "third-dataset", "resources": []},
+                    ],
+                }
+                return {"count": 3, "results": pages.get(start, [])}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            client = Client()
+            manifest = discover_catalog(client, Path(tmp), page_size=2)
+
+            self.assertEqual(client.calls, [(0, 2), (1, 2)])
+            self.assertEqual(manifest["dataset_count"], 3)
+            self.assertTrue(manifest["complete"])
+
+
 if __name__ == "__main__":
     unittest.main()
