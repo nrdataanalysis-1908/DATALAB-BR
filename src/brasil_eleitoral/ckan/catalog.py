@@ -190,11 +190,11 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
             raise ValueError("CKAN page response results must be an array")
         if len(results) > page_size:
             raise ValueError("CKAN page response exceeds the requested page size")
-        if total is not None and remote_count != total:
+        if total is not None and remote_count < total:
             if start > 0:
                 if catalog_restart_used:
-                    raise ValueError("CKAN catalog count changed repeatedly during discovery")
-                LOG.warning("CKAN catalog count changed during pagination; restarting from offset zero")
+                    raise ValueError("CKAN catalog shrank repeatedly during discovery")
+                LOG.warning("CKAN catalog shrank during pagination; restarting from offset zero")
                 start, seen = 0, {}
                 total = remote_count
                 catalog_restart_used = True
