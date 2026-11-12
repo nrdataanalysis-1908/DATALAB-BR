@@ -252,5 +252,40 @@ class CheckpointRecoveryTests(unittest.TestCase):
             self.assertTrue(manifest["complete"])
 
 
+    def test_checkpoint_is_bound_to_its_ckan_source(self):
+        class Client:
+            def __init__(self, base_url, dataset_name):
+                self.base_url = base_url
+                self.dataset_name = dataset_name
+                self.calls = []
+
+            def search_page(self, *, start, rows):
+                self.calls.append((start, rows))
+                if start:
+                    return {"count": 1, "results": []}
+                return {
+                    "count": 1,
+                    "results": [{"name": self.dataset_name, "resources": []}],
+                }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            original = Client("https://source-a.example", "source-a-dataset")
+            discover_catalog(original, root, page_size=1)
+
+            replacement = Client("https://source-b.example", "source-b-dataset")
+            manifest = discover_catalog(replacement, root, page_size=1)
+            checkpoint = json.loads(
+                (root / ".ckan_checkpoint.json").read_text(encoding="utf-8")
+            )
+
+            self.assertEqual(replacement.calls, [(0, 1)])
+            self.assertEqual(
+                [item["name"] for item in manifest["datasets"]],
+                ["source-b-dataset"],
+            )
+            self.assertEqual(checkpoint["source_url"], replacement.base_url)
+
+
 if __name__ == "__main__":
     unittest.main()
