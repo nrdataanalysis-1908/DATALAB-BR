@@ -359,5 +359,34 @@ class CheckpointRecoveryTests(unittest.TestCase):
             self.assertTrue(manifest["complete"])
 
 
+    def test_legacy_checkpoint_without_source_identity_restarts_safely(self):
+        class Client:
+            base_url = "https://dadosabertos.tse.jus.br"
+
+            def __init__(self):
+                self.calls = []
+
+            def search_page(self, *, start, rows):
+                self.calls.append((start, rows))
+                records = [
+                    {"name": "first-dataset", "resources": []},
+                    {"name": "second-dataset", "resources": []},
+                ]
+                return {"count": 2, "results": records[start:start + rows]}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".ckan_checkpoint.json").write_text(
+                json.dumps({"next_start": 1, "total": 2, "seen": {}}),
+                encoding="utf-8",
+            )
+            client = Client()
+            manifest = discover_catalog(client, root, page_size=1)
+
+            self.assertEqual(client.calls, [(0, 1), (1, 1)])
+            self.assertEqual(manifest["dataset_count"], 2)
+            self.assertTrue(manifest["complete"])
+
+
 if __name__ == "__main__":
     unittest.main()
