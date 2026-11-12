@@ -207,5 +207,23 @@ class CheckpointRecoveryTests(unittest.TestCase):
                 discover_catalog(Client(), Path(tmp), page_size=10)
 
 
+    def test_catalog_rejects_page_that_extends_past_reported_total(self):
+        class Client:
+            base_url = "https://dadosabertos.tse.jus.br"
+
+            def search_page(self, *, start, rows):
+                return {
+                    "count": 1,
+                    "results": [
+                        {"name": "first-dataset", "resources": []},
+                        {"name": "unexpected-dataset", "resources": []},
+                    ],
+                }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "beyond the reported total"):
+                discover_catalog(Client(), Path(tmp), page_size=2)
+
+
 if __name__ == "__main__":
     unittest.main()
