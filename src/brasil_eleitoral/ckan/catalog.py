@@ -143,6 +143,11 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
     output_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = _load_checkpoint(checkpoint_path)
     start, seen, total = checkpoint["next_start"], checkpoint["seen"], checkpoint["total"]
+    source_url = client.base_url
+    if checkpoint.get("source_url") != source_url:
+        if seen or start or total is not None:
+            LOG.warning("Checkpoint belongs to a different CKAN source; restarting discovery")
+        start, seen, total = 0, {}, None
     verified_seen: dict[str, str] = {}
     checkpoint_incomplete = False
     for name, expected_digest in seen.items():
@@ -206,7 +211,13 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
             _atomic_json(target, normalized)
             seen[normalized["name"]] = hashlib.sha256(target.read_bytes()).hexdigest()
         start += len(results)
-        checkpoint = {"next_start": start, "total": total, "seen": seen, "updated_at": datetime.now(timezone.utc).isoformat()}
+        checkpoint = {
+            "source_url": source_url,
+            "next_start": start,
+            "total": total,
+            "seen": seen,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
         _atomic_json(checkpoint_path, checkpoint)
         if progress: progress(start, total)
         LOG.info("Catalog discovery: %d/%d datasets", start, total)
