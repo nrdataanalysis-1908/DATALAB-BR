@@ -171,6 +171,7 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
     extracted_at = datetime.now(timezone.utc).isoformat()
     # A completed checkpoint gets one remote probe so newly appended datasets are discovered.
     probe_completed_checkpoint = total is not None and start >= total
+    catalog_restart_used = False
     while total is None or start < total or probe_completed_checkpoint:
         probe_completed_checkpoint = False
         page = client.search_page(start=start, rows=page_size)
@@ -188,6 +189,16 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
             raise ValueError("CKAN page response results must be an array")
         if len(results) > page_size:
             raise ValueError("CKAN page response exceeds the requested page size")
+        if total is not None and remote_count != total:
+            if start > 0:
+                if catalog_restart_used:
+                    raise ValueError("CKAN catalog count changed repeatedly during discovery")
+                LOG.warning("CKAN catalog count changed during pagination; restarting from offset zero")
+                start, seen = 0, {}
+                total = remote_count
+                catalog_restart_used = True
+                continue
+            seen = {}
         total = remote_count
         if not results: break
         if start + len(results) > total:
