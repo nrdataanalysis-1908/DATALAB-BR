@@ -91,7 +91,7 @@ def normalize_dataset(dataset: dict[str, Any], *, source_url: str, extracted_at:
     }
 
 def _load_checkpoint(path: Path) -> dict[str, Any]:
-    default: dict[str, Any] = {"next_start": 0, "total": None, "seen": {}}
+    default: dict[str, Any] = {"source_url": None, "next_start": 0, "total": None, "seen": {}}
     if path.is_symlink():
         LOG.warning("Ignoring symbolic-link checkpoint: %s", path)
         return default
@@ -109,12 +109,14 @@ def _load_checkpoint(path: Path) -> dict[str, Any]:
     next_start = loaded.get("next_start", 0)
     total = loaded.get("total")
     seen = loaded.get("seen")
+    source_url = loaded.get("source_url")
     valid = (
         isinstance(next_start, int) and not isinstance(next_start, bool) and next_start >= 0
         and (total is None or (
             isinstance(total, int) and not isinstance(total, bool) and total >= 0
         ))
         and (total is not None or next_start == 0)
+        and (source_url is None or isinstance(source_url, str))
         and isinstance(seen, dict)
         and (total is None or next_start <= total)
         and all(
@@ -128,7 +130,12 @@ def _load_checkpoint(path: Path) -> dict[str, Any]:
     if not valid:
         LOG.warning("Ignoring checkpoint with invalid offsets, dataset names or SHA-256 values: %s", path)
         return default
-    return {"next_start": next_start, "total": total, "seen": dict(seen)}
+    return {
+        "source_url": source_url,
+        "next_start": next_start,
+        "total": total,
+        "seen": dict(seen),
+    }
 
 
 def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 100,
