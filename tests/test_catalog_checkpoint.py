@@ -325,5 +325,39 @@ class CheckpointRecoveryTests(unittest.TestCase):
             )
 
 
+    def test_checkpoint_without_remote_total_cannot_resume_at_nonzero_offset(self):
+        class Client:
+            base_url = "https://dadosabertos.tse.jus.br"
+
+            def __init__(self):
+                self.calls = []
+
+            def search_page(self, *, start, rows):
+                self.calls.append((start, rows))
+                records = [
+                    {"name": "first-dataset", "resources": []},
+                    {"name": "second-dataset", "resources": []},
+                ]
+                return {"count": 2, "results": records[start:start + rows]}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".ckan_checkpoint.json").write_text(
+                json.dumps({
+                    "source_url": Client.base_url,
+                    "next_start": 1,
+                    "total": None,
+                    "seen": {},
+                }),
+                encoding="utf-8",
+            )
+            client = Client()
+            manifest = discover_catalog(client, root, page_size=1)
+
+            self.assertEqual(client.calls, [(0, 1), (1, 1)])
+            self.assertEqual(manifest["dataset_count"], 2)
+            self.assertTrue(manifest["complete"])
+
+
 if __name__ == "__main__":
     unittest.main()
