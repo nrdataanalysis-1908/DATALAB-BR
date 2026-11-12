@@ -76,6 +76,7 @@ class CatalogTests(unittest.TestCase):
             digest = hashlib.sha256(cached.read_bytes()).hexdigest()
             (root / ".ckan_checkpoint.json").write_text(
                 json.dumps({
+                    "source_url": FakeClient.base_url,
                     "next_start": 1,
                     "total": 2,
                     "seen": {"resultado-2022": digest},
