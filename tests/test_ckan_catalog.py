@@ -107,4 +107,37 @@ class CatalogTests(unittest.TestCase):
         client=CKANClient("https://x",retries=1,backoff=0)
         self.assertEqual(client.action("package_search"),{"ok":True}); self.assertEqual(urlopen.call_count,2)
 
+
+    @patch("brasil_eleitoral.ckan.client.urlopen")
+    @patch("brasil_eleitoral.ckan.client.time.sleep")
+    def test_retries_incomplete_http_response(self, sleep, urlopen):
+        from http.client import IncompleteRead
+
+        class BrokenResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return None
+
+            def read(self, size=-1):
+                raise IncompleteRead(b'{"success":', 20)
+
+        class ValidResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return None
+
+            def read(self, size=-1):
+                return b'{"success":true,"result":{"recovered":true}}'
+
+        urlopen.side_effect = [BrokenResponse(), ValidResponse()]
+        client = CKANClient("https://x", retries=1, backoff=0)
+
+        self.assertEqual(client.action("package_search"), {"recovered": True})
+        self.assertEqual(urlopen.call_count, 2)
+        sleep.assert_called_once_with(0)
+
 if __name__=="__main__": unittest.main()
