@@ -8,6 +8,7 @@ import random
 import re
 import time
 from typing import Any
+from http.client import IncompleteRead
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
@@ -97,7 +98,7 @@ class CKANClient:
                 last_error = exc
                 if exc.code not in {408, 425, 429, 500, 502, 503, 504} or attempt >= self.retries:
                     break
-            except (URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            except (IncompleteRead, URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError) as exc:
                 last_error = exc
                 if attempt >= self.retries:
                     break
