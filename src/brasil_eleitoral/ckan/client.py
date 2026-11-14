@@ -7,6 +7,8 @@ import math
 import random
 import re
 import time
+from datetime import timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 from http.client import IncompleteRead
 from urllib.error import HTTPError, URLError
@@ -25,6 +27,27 @@ def _is_finite_number(value: Any) -> bool:
         return math.isfinite(value)
     except (OverflowError, TypeError):
         return False
+
+
+def _retry_after_seconds(error: HTTPError) -> float | None:
+    """Return a bounded Retry-After delay, accepting seconds or an HTTP date."""
+    headers = error.headers
+    value = headers.get("Retry-After") if headers is not None else None
+    if value is None:
+        return None
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        try:
+            retry_at = parsedate_to_datetime(str(value))
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        seconds = retry_at.timestamp() - time.time()
+    if not math.isfinite(seconds):
+        return None
+    return min(max(seconds, 0.0), _MAX_BACKOFF)
 
 
 class CKANError(RuntimeError):
@@ -82,6 +105,7 @@ class CKANClient:
         request = Request(url, headers={"Accept": "application/json", "User-Agent": self.user_agent})
         last_error: Exception | None = None
         for attempt in range(self.retries + 1):
+            retry_after: float | None = None
             try:
                 with urlopen(request, timeout=self.timeout) as response:
                     body = response.read(_MAX_RESPONSE_BYTES + 1)
@@ -96,13 +120,19 @@ class CKANClient:
                 return payload.get("result")
             except HTTPError as exc:
                 last_error = exc
-                if exc.code not in {408, 425, 429, 500, 502, 503, 504} or attempt >= self.retries:
+                retry_after = _retry_after_seconds(exc)
+                retryable = exc.code in {408, 425, 429, 500, 502, 503, 504}
+                try:
+                    exc.close()
+                except OSError:
+                    pass
+                if not retryable or attempt >= self.retries:
                     break
             except (IncompleteRead, URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError) as exc:
                 last_error = exc
                 if attempt >= self.retries:
                     break
-            delay = min(
+            delay = retry_after if retry_after is not None else min(
                 self.backoff * (2 ** attempt) + random.uniform(0, self.backoff / 4),
                 _MAX_BACKOFF,
             )
