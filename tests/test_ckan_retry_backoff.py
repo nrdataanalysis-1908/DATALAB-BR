@@ -120,9 +120,6 @@ class CKANRetryAfterTests(unittest.TestCase):
         sleep.assert_called_once_with(300.0)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
     def test_past_http_date_retry_after_is_clamped_to_zero(self):
         import io
 
@@ -168,3 +165,6 @@ if __name__ == "__main__":
         sleep.assert_not_called()
         self.assertTrue(body.closed)
 
+
+if __name__ == "__main__":
+    unittest.main()
