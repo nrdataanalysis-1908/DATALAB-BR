@@ -258,6 +258,10 @@ def download_resource(
 
 def _load_manifest_entries(manifest_path: Path, output_dir: Path) -> dict[str, dict[str, Any]]:
     """Load only structurally valid entries that point to direct output files."""
+    if manifest_path.is_symlink():
+        raise DownloadError("Download manifest path must not be a symbolic link")
+    if manifest_path.exists() and not manifest_path.is_file():
+        raise DownloadError("Download manifest path must be a regular file")
     if not manifest_path.exists():
         return {}
     try:
