@@ -10,6 +10,7 @@ import random
 import re
 import tempfile
 import time
+from http.client import IncompleteRead
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -237,6 +238,20 @@ def download_resource(
                 LOG.warning("Discarding stale partial download after HTTP 416 for %s", url)
                 continue
             if exc.code not in _TRANSIENT or attempt >= retries:
+                break
+        except IncompleteRead as exc:
+            last_error = exc
+            if exc.partial:
+                try:
+                    with partial.open("ab") as output:
+                        output.write(exc.partial)
+                        output.flush()
+                        os.fsync(output.fileno())
+                except OSError as write_error:
+                    raise DownloadError(
+                        "Could not preserve partial bytes after an incomplete response"
+                    ) from write_error
+            if attempt >= retries:
                 break
         except (URLError, TimeoutError, OSError) as exc:
             last_error = exc
