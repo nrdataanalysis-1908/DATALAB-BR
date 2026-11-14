@@ -20,5 +20,40 @@ class CKANRetryBackoffTests(unittest.TestCase):
         self.assertTrue(all(call.args[0] <= 300 for call in sleep.call_args_list))
 
 
+class _ValidResponse:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return None
+
+    def read(self, size=-1):
+        return b'{"success":true,"result":{"ok":true}}'
+
+
+class CKANRetryAfterTests(unittest.TestCase):
+    def test_numeric_retry_after_is_honored_and_error_stream_is_closed(self):
+        import io
+
+        body = io.BytesIO(b"rate limited")
+        error = HTTPError(
+            "https://example.test/api",
+            429,
+            "rate limited",
+            {"Retry-After": "7"},
+            body,
+        )
+        with patch(
+            "brasil_eleitoral.ckan.client.urlopen",
+            side_effect=[error, _ValidResponse()],
+        ):
+            with patch("brasil_eleitoral.ckan.client.time.sleep") as sleep:
+                client = CKANClient("https://example.test", retries=1, backoff=0.1)
+                self.assertEqual(client.action("package_search"), {"ok": True})
+
+        sleep.assert_called_once_with(7.0)
+        self.assertTrue(body.closed)
+
+
 if __name__ == "__main__":
     unittest.main()
