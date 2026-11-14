@@ -38,3 +38,27 @@ class PartialDownloadPathTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_symlinked_partial_metadata_is_rejected_without_reading_target(self, urlopen):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            destination = root / "resource.bin"
+            partial = destination.with_name(destination.name + ".part")
+            partial.write_bytes(b"partial bytes")
+            state_path = destination.with_name(destination.name + ".part.json")
+            protected = root / "protected-state.json"
+            protected_payload = json.dumps({
+                "url": "https://example.test/resource",
+                "etag": '"v1"',
+            })
+            protected.write_text(protected_payload, encoding="utf-8")
+            state_path.symlink_to(protected)
+
+            with self.assertRaisesRegex(DownloadError, "metadata path.*symbolic link"):
+                download_resource("https://example.test/resource", destination)
+
+            self.assertEqual(protected.read_text(encoding="utf-8"), protected_payload)
+            self.assertEqual(partial.read_bytes(), b"partial bytes")
+            urlopen.assert_not_called()
+
