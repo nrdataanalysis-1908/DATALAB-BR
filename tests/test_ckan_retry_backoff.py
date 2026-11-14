@@ -99,5 +99,26 @@ class CKANRetryAfterTests(unittest.TestCase):
         sleep.assert_called_once_with(2.0)
 
 
+    def test_retry_after_is_capped_by_global_backoff_limit(self):
+        import io
+
+        error = HTTPError(
+            "https://example.test/api",
+            429,
+            "rate limited",
+            {"Retry-After": "9999"},
+            io.BytesIO(b"rate limited"),
+        )
+        with patch(
+            "brasil_eleitoral.ckan.client.urlopen",
+            side_effect=[error, _ValidResponse()],
+        ):
+            with patch("brasil_eleitoral.ckan.client.time.sleep") as sleep:
+                client = CKANClient("https://example.test", retries=1, backoff=0)
+                self.assertEqual(client.action("package_search"), {"ok": True})
+
+        sleep.assert_called_once_with(300.0)
+
+
 if __name__ == "__main__":
     unittest.main()
