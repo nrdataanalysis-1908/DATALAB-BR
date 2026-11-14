@@ -36,9 +36,6 @@ class PartialDownloadPathTests(unittest.TestCase):
             urlopen.assert_not_called()
 
 
-if __name__ == "__main__":
-    unittest.main()
-
     @patch("brasil_eleitoral.ingestion.downloader.urlopen")
     def test_symlinked_partial_metadata_is_rejected_without_reading_target(self, urlopen):
         with tempfile.TemporaryDirectory() as tmp:
@@ -102,3 +99,6 @@ if __name__ == "__main__":
             with self.assertRaisesRegex(DownloadError, "manifest path.*regular file"):
                 download_resources([], output, manifest_path=manifest)
 
+
+if __name__ == "__main__":
+    unittest.main()
