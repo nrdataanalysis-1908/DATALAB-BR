@@ -83,6 +83,7 @@ class DownloaderIncompleteReadTests(unittest.TestCase):
 
     @patch("brasil_eleitoral.ingestion.downloader.urlopen")
     def test_exhausted_incomplete_read_keeps_partial_for_diagnosis(self, urlopen):
+        url = "https://example.test/resource"
         urlopen.return_value = _TruncatedResponse()
 
         with tempfile.TemporaryDirectory() as tmp:
