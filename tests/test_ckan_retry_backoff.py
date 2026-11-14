@@ -122,3 +122,25 @@ class CKANRetryAfterTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_past_http_date_retry_after_is_clamped_to_zero(self):
+        import io
+
+        error = HTTPError(
+            "https://example.test/api",
+            429,
+            "rate limited",
+            {"Retry-After": "Wed, 31 Dec 1969 23:59:50 GMT"},
+            io.BytesIO(b"rate limited"),
+        )
+        with patch(
+            "brasil_eleitoral.ckan.client.urlopen",
+            side_effect=[error, _ValidResponse()],
+        ):
+            with patch("brasil_eleitoral.ckan.client.time.time", return_value=0):
+                with patch("brasil_eleitoral.ckan.client.time.sleep") as sleep:
+                    client = CKANClient("https://example.test", retries=1, backoff=1)
+                    self.assertEqual(client.action("package_search"), {"ok": True})
+
+        sleep.assert_called_once_with(0.0)
+
