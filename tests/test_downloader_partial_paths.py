@@ -62,3 +62,15 @@ if __name__ == "__main__":
             self.assertEqual(partial.read_bytes(), b"partial bytes")
             urlopen.assert_not_called()
 
+    @patch("brasil_eleitoral.ingestion.downloader.urlopen")
+    def test_directory_at_partial_metadata_path_is_rejected(self, urlopen):
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = Path(tmp) / "resource.bin"
+            destination.with_name(destination.name + ".part").write_bytes(b"partial")
+            destination.with_name(destination.name + ".part.json").mkdir()
+
+            with self.assertRaisesRegex(DownloadError, "metadata path.*regular file"):
+                download_resource("https://example.test/resource", destination)
+
+            urlopen.assert_not_called()
+
