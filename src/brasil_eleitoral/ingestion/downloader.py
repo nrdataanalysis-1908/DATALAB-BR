@@ -140,6 +140,10 @@ def download_resource(
     destination.parent.mkdir(parents=True, exist_ok=True)
     partial = destination.with_name(destination.name + ".part")
     state_path = destination.with_name(destination.name + ".part.json")
+    if state_path.is_symlink():
+        raise DownloadError("Partial download metadata path must not be a symbolic link")
+    if state_path.exists() and not state_path.is_file():
+        raise DownloadError("Partial download metadata path must be a regular file")
     if partial.is_symlink():
         raise DownloadError("Partial download path must not be a symbolic link")
     if partial.exists() and not partial.is_file():
