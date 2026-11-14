@@ -231,6 +231,11 @@ def download_resource(
             }
         except HTTPError as exc:
             last_error = exc
+            if exc.fp is not None:
+                try:
+                    exc.close()
+                except OSError:
+                    pass
             if exc.code == 416 and offset > 0 and attempt < retries:
                 partial.unlink(missing_ok=True)
                 state_path.unlink(missing_ok=True)
