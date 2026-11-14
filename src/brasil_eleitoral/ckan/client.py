@@ -122,10 +122,11 @@ class CKANClient:
                 last_error = exc
                 retry_after = _retry_after_seconds(exc)
                 retryable = exc.code in {408, 425, 429, 500, 502, 503, 504}
-                try:
-                    exc.close()
-                except OSError:
-                    pass
+                if exc.fp is not None:
+                    try:
+                        exc.close()
+                    except OSError:
+                        pass
                 if not retryable or attempt >= self.retries:
                     break
             except (IncompleteRead, URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError) as exc:
