@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from brasil_eleitoral.ingestion.downloader import DownloadError, download_resource
+from brasil_eleitoral.ingestion.downloader import DownloadError, download_resource, download_resources
 
 
 class PartialDownloadPathTests(unittest.TestCase):
@@ -73,4 +73,21 @@ if __name__ == "__main__":
                 download_resource("https://example.test/resource", destination)
 
             urlopen.assert_not_called()
+
+    def test_symlinked_download_manifest_is_rejected_without_following_target(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = root / "output"
+            output.mkdir()
+            external = root / "protected-manifest.json"
+            payload = json.dumps({"resources": [], "private": "preserve"})
+            external.write_text(payload, encoding="utf-8")
+            manifest = output / "manifest.json"
+            manifest.symlink_to(external)
+
+            with self.assertRaisesRegex(DownloadError, "manifest path.*symbolic link"):
+                download_resources([], output, manifest_path=manifest)
+
+            self.assertTrue(manifest.is_symlink())
+            self.assertEqual(external.read_text(encoding="utf-8"), payload)
 
