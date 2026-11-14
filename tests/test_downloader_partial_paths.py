@@ -91,3 +91,14 @@ if __name__ == "__main__":
             self.assertTrue(manifest.is_symlink())
             self.assertEqual(external.read_text(encoding="utf-8"), payload)
 
+    def test_directory_at_download_manifest_path_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = root / "output"
+            output.mkdir()
+            manifest = output / "manifest.json"
+            manifest.mkdir()
+
+            with self.assertRaisesRegex(DownloadError, "manifest path.*regular file"):
+                download_resources([], output, manifest_path=manifest)
+
