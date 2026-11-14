@@ -144,3 +144,27 @@ if __name__ == "__main__":
 
         sleep.assert_called_once_with(0.0)
 
+    def test_non_retryable_http_error_closes_body_without_sleeping(self):
+        import io
+
+        body = io.BytesIO(b"not found")
+        error = HTTPError(
+            "https://example.test/api",
+            404,
+            "not found",
+            {},
+            body,
+        )
+        with patch(
+            "brasil_eleitoral.ckan.client.urlopen",
+            side_effect=error,
+        ) as urlopen:
+            with patch("brasil_eleitoral.ckan.client.time.sleep") as sleep:
+                client = CKANClient("https://example.test", retries=3, backoff=1)
+                with self.assertRaises(CKANError):
+                    client.action("package_search")
+
+        self.assertEqual(urlopen.call_count, 1)
+        sleep.assert_not_called()
+        self.assertTrue(body.closed)
+
