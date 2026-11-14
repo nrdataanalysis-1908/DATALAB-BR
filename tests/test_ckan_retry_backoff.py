@@ -77,5 +77,27 @@ class CKANRetryAfterTests(unittest.TestCase):
         sleep.assert_called_once_with(8.0)
 
 
+    def test_invalid_retry_after_falls_back_to_exponential_backoff(self):
+        import io
+
+        error = HTTPError(
+            "https://example.test/api",
+            429,
+            "rate limited",
+            {"Retry-After": "not-a-date"},
+            io.BytesIO(b"rate limited"),
+        )
+        with patch(
+            "brasil_eleitoral.ckan.client.urlopen",
+            side_effect=[error, _ValidResponse()],
+        ):
+            with patch("brasil_eleitoral.ckan.client.random.uniform", return_value=0):
+                with patch("brasil_eleitoral.ckan.client.time.sleep") as sleep:
+                    client = CKANClient("https://example.test", retries=1, backoff=2)
+                    self.assertEqual(client.action("package_search"), {"ok": True})
+
+        sleep.assert_called_once_with(2.0)
+
+
 if __name__ == "__main__":
     unittest.main()
