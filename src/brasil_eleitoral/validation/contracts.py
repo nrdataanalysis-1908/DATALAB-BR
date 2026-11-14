@@ -103,6 +103,12 @@ def validate_records(records: Iterable[dict[str, Any]], contract: DataContract) 
     for item in contract.fields:
         if item.dtype not in _TYPE_CHECKS:
             raise ValueError(f"Unsupported dtype {item.dtype!r} for field {item.name!r}")
+        if not isinstance(item.allowed_values, (tuple, list)):
+            raise ValueError(f"allowed_values for field {item.name!r} must be a sequence")
+        if any(not _TYPE_CHECKS[item.dtype](value) for value in item.allowed_values):
+            raise ValueError(
+                f"allowed_values for field {item.name!r} must match dtype {item.dtype!r}"
+            )
 
     report = ValidationReport(contract=contract.name, rows_checked=0)
     seen_keys: set[tuple[Any, ...]] = set()
@@ -112,6 +118,11 @@ def validate_records(records: Iterable[dict[str, Any]], contract: DataContract) 
             report.errors.append({"row": row_number, "field": None, "code": "invalid_record",
                                   "message": "Record must be an object"})
             continue
+        for field_name in record:
+            if field_name not in names:
+                report.errors.append({
+                    "row": row_number, "field": field_name, "code": "unexpected_field"
+                })
         for item in contract.fields:
             value = record.get(item.name)
             if item.name not in record:
@@ -160,7 +171,7 @@ def validate_csv(path: Path, contract: DataContract, *, delimiter: str = ",",
     if (
         not isinstance(delimiter, str)
         or len(delimiter) != 1
-        or delimiter in {"\\r", "\\n", "\\x00"}
+        or delimiter in {"\r", "\n", "\x00"}
     ):
         raise ValueError("delimiter must be a single non-newline character")
 
@@ -189,6 +200,12 @@ def validate_csv(path: Path, contract: DataContract, *, delimiter: str = ",",
                     extra_value_errors.append({
                         "row": row_number, "field": None, "code": "extra_values",
                         "count": len(row[None]),
+                    })
+                missing_values = [name for name in actual if row.get(name) is None]
+                if missing_values:
+                    extra_value_errors.append({
+                        "row": row_number, "field": None, "code": "missing_values",
+                        "columns": missing_values,
                     })
                 yield {
                     item.name: _parse_csv_value(row.get(item.name), item.dtype)
@@ -261,10 +278,16 @@ def load_contract(path: Path) -> DataContract:
             raise ValueError(f"Contract field at index {index} requires a non-empty name")
         if not isinstance(dtype, str):
             raise ValueError(f"Contract field {field_name!r} requires a string type")
+        if dtype not in _TYPE_CHECKS:
+            raise ValueError(f"Unsupported dtype {dtype!r} for field {field_name!r}")
         if not isinstance(nullable, bool):
             raise ValueError(f"Contract field {field_name!r} nullable must be boolean")
         if not isinstance(allowed_values, list):
             raise ValueError(f"Contract field {field_name!r} allowed_values must be an array")
+        if any(not _TYPE_CHECKS[dtype](value) for value in allowed_values):
+            raise ValueError(
+                f"Contract field {field_name!r} allowed_values must match dtype {dtype!r}"
+            )
         fields.append(FieldContract(
             name=field_name, dtype=dtype, nullable=nullable,
             allowed_values=tuple(allowed_values),
@@ -299,6 +322,8 @@ def load_contract(path: Path) -> DataContract:
         isinstance(maximum_rows, bool) or not isinstance(maximum_rows, int) or maximum_rows < 0
     ):
         raise ValueError("Contract maximum_rows must be a non-negative integer or null")
+    if maximum_rows is not None and maximum_rows < minimum_rows:
+        raise ValueError("Contract maximum_rows cannot be lower than minimum_rows")
 
     return DataContract(
         name=name, version=version, fields=tuple(fields),

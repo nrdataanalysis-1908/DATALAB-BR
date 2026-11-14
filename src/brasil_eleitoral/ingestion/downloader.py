@@ -10,6 +10,7 @@ import random
 import re
 import tempfile
 import time
+from http.client import IncompleteRead
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -140,6 +141,14 @@ def download_resource(
     destination.parent.mkdir(parents=True, exist_ok=True)
     partial = destination.with_name(destination.name + ".part")
     state_path = destination.with_name(destination.name + ".part.json")
+    if state_path.is_symlink():
+        raise DownloadError("Partial download metadata path must not be a symbolic link")
+    if state_path.exists() and not state_path.is_file():
+        raise DownloadError("Partial download metadata path must be a regular file")
+    if partial.is_symlink():
+        raise DownloadError("Partial download path must not be a symbolic link")
+    if partial.exists() and not partial.is_file():
+        raise DownloadError("Partial download path must be a regular file")
     state: dict[str, Any] = {}
     if partial.exists() and state_path.exists():
         try:
@@ -162,6 +171,26 @@ def download_resource(
         request = Request(url, headers=headers)
         try:
             with urlopen(request, timeout=timeout) as response:
+                get_final_url = getattr(response, "geturl", None)
+                final_url = get_final_url() if callable(get_final_url) else url
+                if not isinstance(final_url, str):
+                    raise DownloadError("Redirected resource URL must be text")
+                try:
+                    final = urlparse(final_url)
+                    final.port
+                except ValueError as exc:
+                    raise DownloadError("Redirected resource URL has an invalid authority or port") from exc
+                if (
+                    final.scheme.lower() not in {"http", "https"}
+                    or not final.hostname
+                    or final.username is not None
+                    or final.password is not None
+                ):
+                    raise DownloadError(
+                        "Redirected resource URL must be absolute HTTP(S) without credentials"
+                    )
+                if parsed.scheme.lower() == "https" and final.scheme.lower() != "https":
+                    raise DownloadError("HTTPS resource cannot follow an insecure redirect")
                 status = getattr(response, "status", response.getcode())
                 etag = response.headers.get("ETag")
                 total_header = response.headers.get("Content-Length")
@@ -222,7 +251,32 @@ def download_resource(
             }
         except HTTPError as exc:
             last_error = exc
+            if exc.fp is not None:
+                try:
+                    exc.close()
+                except OSError:
+                    pass
+            if exc.code == 416 and offset > 0 and attempt < retries:
+                partial.unlink(missing_ok=True)
+                state_path.unlink(missing_ok=True)
+                state = {}
+                LOG.warning("Discarding stale partial download after HTTP 416 for %s", url)
+                continue
             if exc.code not in _TRANSIENT or attempt >= retries:
+                break
+        except IncompleteRead as exc:
+            last_error = exc
+            if exc.partial:
+                try:
+                    with partial.open("ab") as output:
+                        output.write(exc.partial)
+                        output.flush()
+                        os.fsync(output.fileno())
+                except OSError as write_error:
+                    raise DownloadError(
+                        "Could not preserve partial bytes after an incomplete response"
+                    ) from write_error
+            if attempt >= retries:
                 break
         except (URLError, TimeoutError, OSError) as exc:
             last_error = exc
@@ -244,6 +298,10 @@ def download_resource(
 
 def _load_manifest_entries(manifest_path: Path, output_dir: Path) -> dict[str, dict[str, Any]]:
     """Load only structurally valid entries that point to direct output files."""
+    if manifest_path.is_symlink():
+        raise DownloadError("Download manifest path must not be a symbolic link")
+    if manifest_path.exists() and not manifest_path.is_file():
+        raise DownloadError("Download manifest path must be a regular file")
     if not manifest_path.exists():
         return {}
     try:
@@ -274,9 +332,31 @@ def _load_manifest_entries(manifest_path: Path, output_dir: Path) -> dict[str, d
             LOG.warning("Ignoring manifest resource with invalid identity or path at index %d", index)
             continue
         try:
-            if Path(existing_path).parent.resolve() != output_root:
-                LOG.warning("Ignoring manifest resource outside the output directory: %s", resource_id)
+            candidate_path = Path(existing_path)
+            if (
+                candidate_path.parent.resolve() != output_root
+                or candidate_path.is_symlink()
+                or not candidate_path.is_file()
+            ):
+                LOG.warning(
+                    "Ignoring missing, linked or external manifest resource: %s",
+                    resource_id,
+                )
                 continue
+            expected_checksum = item.get("checksum")
+            if expected_checksum is not None:
+                algorithm = item.get("checksum_algorithm", "sha256")
+                if not isinstance(expected_checksum, str) or not isinstance(algorithm, str):
+                    LOG.warning("Ignoring manifest resource with invalid checksum metadata: %s", resource_id)
+                    continue
+                try:
+                    actual_checksum = _digest(candidate_path, algorithm)
+                except ValueError:
+                    LOG.warning("Ignoring manifest resource with unsupported checksum: %s", resource_id)
+                    continue
+                if actual_checksum.lower() != expected_checksum.lower():
+                    LOG.warning("Ignoring manifest resource whose checksum changed: %s", resource_id)
+                    continue
         except (OSError, RuntimeError, ValueError):
             LOG.warning("Ignoring manifest resource with an invalid path: %s", resource_id)
             continue

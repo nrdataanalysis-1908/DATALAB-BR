@@ -14,6 +14,13 @@ class ManifestEntryTests(unittest.TestCase):
             kept.write_text("verified", encoding="utf-8")
             outside = root.parent / f"{root.name}-outside.csv"
             outside.write_text("outside", encoding="utf-8")
+            tampered = root / "tampered.csv"
+            tampered.write_text("changed", encoding="utf-8")
+            linked = root / "linked.csv"
+            try:
+                linked.symlink_to(outside)
+            except OSError:
+                linked = None
             manifest = root / "manifest.json"
             manifest.write_text(json.dumps({
                 "resources": [
@@ -22,6 +29,9 @@ class ManifestEntryTests(unittest.TestCase):
                     {"resource_id": "missing-path"},
                     {"resource_id": "wrong-path-type", "path": ["kept.csv"]},
                     {"resource_id": "outside", "path": str(outside)},
+                    {"resource_id": "missing-file", "path": str(root / "missing.csv")},
+                    {"resource_id": "tampered", "path": str(tampered), "checksum": "0" * 64},
+                    *([{"resource_id": "symlink", "path": str(linked)}] if linked else []),
                     {"resource_id": 42, "path": str(kept)},
                 ]
             }), encoding="utf-8")
