@@ -171,6 +171,26 @@ def download_resource(
         request = Request(url, headers=headers)
         try:
             with urlopen(request, timeout=timeout) as response:
+                get_final_url = getattr(response, "geturl", None)
+                final_url = get_final_url() if callable(get_final_url) else url
+                if not isinstance(final_url, str):
+                    raise DownloadError("Redirected resource URL must be text")
+                try:
+                    final = urlparse(final_url)
+                    final.port
+                except ValueError as exc:
+                    raise DownloadError("Redirected resource URL has an invalid authority or port") from exc
+                if (
+                    final.scheme.lower() not in {"http", "https"}
+                    or not final.hostname
+                    or final.username is not None
+                    or final.password is not None
+                ):
+                    raise DownloadError(
+                        "Redirected resource URL must be absolute HTTP(S) without credentials"
+                    )
+                if parsed.scheme.lower() == "https" and final.scheme.lower() != "https":
+                    raise DownloadError("HTTPS resource cannot follow an insecure redirect")
                 status = getattr(response, "status", response.getcode())
                 etag = response.headers.get("ETag")
                 total_header = response.headers.get("Content-Length")
