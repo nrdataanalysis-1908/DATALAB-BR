@@ -204,7 +204,9 @@ def download_resource(
                     range_size = range_end - range_start + 1
                     if range_start != offset or range_end < range_start or range_end + 1 != range_total:
                         raise DownloadError(f"Incomplete or inconsistent Content-Range: {content_range!r}")
-                    if total_header and (not total_header.isdigit() or int(total_header) != range_size):
+                    if total_header is not None and (
+                        not total_header.isdigit() or int(total_header) != range_size
+                    ):
                         raise DownloadError("Content-Length does not match the resumed byte range")
                     if not etag or etag != state.get("etag"):
                         raise DownloadError("ETag missing or changed during resumed download")
@@ -215,7 +217,9 @@ def download_resource(
                     # request was sent and the server ignored it.
                     offset = 0
                     mode = "wb"
-                    if total_header and total_header.isdigit():
+                    if total_header is not None:
+                        if not total_header.isdigit():
+                            raise DownloadError("Invalid Content-Length for full resource response")
                         expected_total = int(total_header)
                     state = {"url": url, "etag": etag, "last_modified": response.headers.get("Last-Modified")}
                 else:
