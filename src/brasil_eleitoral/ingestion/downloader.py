@@ -256,12 +256,14 @@ def download_resource(
                     exc.close()
                 except OSError:
                     pass
-            if exc.code == 416 and offset > 0 and attempt < retries:
+            if exc.code == 416 and offset > 0:
                 partial.unlink(missing_ok=True)
                 state_path.unlink(missing_ok=True)
                 state = {}
                 LOG.warning("Discarding stale partial download after HTTP 416 for %s", url)
-                continue
+                if attempt < retries:
+                    continue
+                break
             if exc.code not in _TRANSIENT or attempt >= retries:
                 break
         except IncompleteRead as exc:
