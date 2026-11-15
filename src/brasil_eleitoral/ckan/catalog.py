@@ -118,6 +118,7 @@ def _load_checkpoint(path: Path) -> dict[str, Any]:
         and (total is not None or next_start == 0)
         and (source_url is None or isinstance(source_url, str))
         and isinstance(seen, dict)
+        and len(seen) <= next_start
         and (total is None or next_start <= total)
         and all(
             isinstance(name, str)
