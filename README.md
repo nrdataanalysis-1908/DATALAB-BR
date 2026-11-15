@@ -6,9 +6,9 @@
   <a href="https://img.shields.io/badge/Python-3.10%2B-3776AB"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python"></a>
   <a href="https://img.shields.io/badge/Node.js-20%2B-339933"><img src="https://img.shields.io/badge/Node.js-20%2B-168bd0?logo=nodedotjs&logoColor=white" alt="Node.js"></a>
   <a href="https://img.shields.io/badge/Next.js-Web-000000"><img src="https://img.shields.io/badge/Next.js-Web-000000?logo=nextdotjs" alt="Next.js"></a>
-  <a href="https://img.shields.io/badge/Streamlit-Analytics-FF4B4B"><img src="https://img.shields.io/badge/Streamlit-Analytics-168bd0?logo=streamlit&logoColor=white" alt="Streamlit"></a>
-  <a href="https://img.shields.io/badge/Plotly-Charts-3F4F75"><img src="https://img.shields.io/badge/Plotly-Charts-28516a?logo=plotly" alt="Plotly"></a>
-  <a href="https://img.shields.io/badge/Source-TSE-168bd0"><img src="https://img.shields.io/badge/Source-TSE-0B6E99" alt="TSE"></a>
+  <a href="https://img.shields.io/badge/Streamlit-Painel-FF4B4B"><img src="https://img.shields.io/badge/Streamlit-Painel-168bd0?logo=streamlit&logoColor=white" alt="Streamlit"></a>
+  <a href="https://img.shields.io/badge/Plotly-Gráficos-3F4F75"><img src="https://img.shields.io/badge/Plotly-Gráficos-28516a?logo=plotly" alt="Plotly"></a>
+  <a href="https://img.shields.io/badge/Fonte-TSE-168bd0"><img src="https://img.shields.io/badge/Fonte-TSE-0B6E99" alt="TSE"></a>
 </p>
 
 # DATALAB-BR
@@ -62,7 +62,7 @@ A plataforma diferencia explicitamente capacidades implementadas, integrações 
 - Downloader com streaming, retomada HTTP Range/ETag, checksum e escrita atômica.
 - Extração ZIP defensiva contra path traversal, arquivos especiais e pacotes excessivos.
 - Contratos versionados para tipos, nulabilidade, campos obrigatórios, valores permitidos e chaves.
-- Pipeline inicial Bronze/Silver/Gold com fixtures reproduzíveis.
+- Pipeline inicial Bronze/Silver/Gold com dados de teste reproduzíveis.
 - API Node.js, interface Next.js e aplicação analítica Streamlit com Plotly.
 - Testes automatizados e workflows de CI para os componentes do projeto.
 
@@ -106,7 +106,7 @@ A descoberta exige acesso à internet. Sem o manifesto local, a aplicação info
 | Ingestão | Python | Download, retomada, checksum e extração |
 | Qualidade | Python | Contratos, tipos, chaves e regras de validação |
 | Transformação | Python | Normalização e camadas Medallion |
-| API | Node.js | Catálogo e health checks |
+| API | Node.js | Catálogo e verificações de saúde |
 | Web | Next.js / TypeScript | Navegação e consulta |
 | Analytics | Streamlit / Plotly | Exploração interativa dos metadados |
 
@@ -120,11 +120,11 @@ A arquitetura representa o desenho lógico do sistema. Componentes marcados como
 
 | Etapa | Controles principais |
 |---|---|
-| Discover | Paginação, checkpoint e manifesto |
-| Ingest | Streaming, retry, retomada Range/ETag |
-| Validate | SHA-256, checksum, schema e chaves |
-| Transform | Idempotência e separação Bronze/Silver/Gold |
-| Analyze | API, catálogo web e painel exploratório |
+| Descoberta | Paginação, checkpoint e manifesto |
+| Ingestão | Streaming, retry, retomada Range/ETag |
+| Validação | SHA-256, checksum, schema e chaves |
+| Transformação | Idempotência e separação Bronze/Silver/Gold |
+| Análise | API, catálogo web e painel exploratório |
 
 ### Camadas Medallion
 
@@ -259,7 +259,7 @@ DATALAB-BR/
 └── tests/                      # Testes automatizados
 ```
 
-## Estado atual e roadmap
+## Estado atual e roteiro
 
 | Capacidade | Estado |
 |---|---|
@@ -268,8 +268,8 @@ DATALAB-BR/
 | Downloader com retomada Range/ETag | Implementado; validação com origem real pendente |
 | Extração ZIP segura | Implementado e coberto por testes |
 | Contratos e validação de dados | Implementado e coberto por testes |
-| Pipeline Bronze/Silver/Gold | Implementação inicial com fixtures normalizadas |
-| API de catálogo e health checks | Implementada; 4 testes automatizados aprovados no GitHub Actions |
+| Pipeline Bronze/Silver/Gold | Implementação inicial com dados de teste normalizadas |
+| API de catálogo e verificações de saúde | Implementada; 4 testes automatizados aprovados no GitHub Actions |
 | Interface Next.js | Implementação inicial |
 | Streamlit com gráficos Plotly | Implementado para metadados do catálogo |
 | Ingestão integral de dados eleitorais reais | Pendente |
@@ -290,7 +290,7 @@ DATALAB-BR/
 ## Limitações
 
 - A descoberta CKAN e o downloader precisam de execução real contra o portal para confirmar cobertura e disponibilidade.
-- O pipeline Medallion foi validado com fixtures normalizadas; o mapeamento integral dos schemas nativos do TSE ainda não está concluído.
+- O pipeline Medallion foi validado com dados de teste normalizadas; o mapeamento integral dos schemas nativos do TSE ainda não está concluído.
 - Os gráficos atuais analisam metadados do catálogo, não resultados eleitorais.
 - DuckDB/Parquet, PostgreSQL, indicadores Gold e mapas geográficos oficiais permanecem em evolução.
 - Dados agregados não autorizam inferências sobre escolhas ou comportamentos individuais.
