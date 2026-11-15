@@ -129,7 +129,7 @@ class CKANClient:
                         pass
                 if not retryable or attempt >= self.retries:
                     break
-            except (IncompleteRead, URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            except (IncompleteRead, URLError, TimeoutError, OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
                 last_error = exc
                 if attempt >= self.retries:
                     break
