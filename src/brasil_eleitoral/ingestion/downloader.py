@@ -96,6 +96,7 @@ def download_resource(
     if (
         not isinstance(url, str) or not url or url != url.strip()
         or any(ord(character) < 0x20 or ord(character) == 0x7F for character in url)
+        or any(character.isspace() for character in url)
     ):
         raise ValueError("url must be a trimmed HTTP(S) URL without control characters")
     try:
