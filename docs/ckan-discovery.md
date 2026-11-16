@@ -36,3 +36,11 @@ O cliente aplica timeout, retry com backoff exponencial e jitter para falhas tra
 
 - [Portal de Dados Abertos do TSE](https://dadosabertos.tse.jus.br/)
 - [CKAN Action API — documentação oficial](https://docs.ckan.org/en/latest/api/)
+
+## Integridade do manifesto e portabilidade
+
+A descoberta só publica um novo `manifest.json` quando a paginação alcança o total remoto declarado e as páginas não apresentam lacunas. Uma página vazia antes do total esperado é tratada como resposta inconsistente: a execução falha e o manifesto completo anterior permanece preservado. O checkpoint da última página válida continua disponível para diagnóstico e retomada.
+
+Os nomes dos conjuntos são mantidos como identificadores lógicos no manifesto. Para gravação local, slugs que colidiriam com nomes de dispositivos do Windows (por exemplo, `CON`, `NUL`, `COM1` e `LPT1`) ou terminariam em ponto recebem um nome de arquivo determinístico derivado de SHA-256. O mesmo mapeamento é usado na verificação do checkpoint, na gravação e no manifesto.
+
+Os arquivos JSON são serializados em modo estrito. Valores numéricos não finitos (`NaN`, `Infinity` e `-Infinity`) são rejeitados, e campos textuais de grupos, tags e recursos passam por validação de tipo antes da normalização.
