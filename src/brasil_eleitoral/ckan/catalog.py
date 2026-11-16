@@ -18,7 +18,7 @@ def _atomic_json(path: Path, payload: Any) -> None:
     fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
-            json.dump(payload, stream, ensure_ascii=False, indent=2, sort_keys=True)
+            json.dump(payload, stream, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False)
             stream.write("\n"); stream.flush(); os.fsync(stream.fileno())
         os.replace(temp_name, path)
     except Exception:
