@@ -57,6 +57,8 @@ def normalize_dataset(dataset: dict[str, Any], *, source_url: str, extracted_at:
         organization = {}
     if not isinstance(organization, dict):
         raise ValueError("CKAN dataset organization must be an object")
+    organization_title = _optional_text(organization.get("title"), "organization title")
+    organization_id = _optional_text(organization.get("id"), "organization id")
 
     collections = {
         "resources": dataset.get("resources"),
@@ -100,12 +102,12 @@ def normalize_dataset(dataset: dict[str, Any], *, source_url: str, extracted_at:
             "mimetype": resource.get("mimetype"),
         })
     return {
-        "id": dataset.get("id"),
-        "name": dataset.get("name"),
-        "title": dataset.get("title"),
-        "notes": dataset.get("notes"),
-        "organization": organization.get("title"),
-        "organization_id": organization.get("id"),
+        "id": _optional_text(dataset.get("id"), "dataset id"),
+        "name": _optional_text(dataset.get("name"), "dataset name"),
+        "title": _optional_text(dataset.get("title"), "dataset title"),
+        "notes": _optional_text(dataset.get("notes"), "dataset notes"),
+        "organization": organization_title,
+        "organization_id": organization_id,
         "groups": [
             _optional_text(group.get("title"), "group title")
             or _optional_text(group.get("name"), "group name")
@@ -115,11 +117,11 @@ def normalize_dataset(dataset: dict[str, Any], *, source_url: str, extracted_at:
             _optional_text(tag.get("name"), "tag name")
             for tag in collections["tags"] or []
         ],
-        "metadata_created": dataset.get("metadata_created"),
-        "metadata_modified": dataset.get("metadata_modified"),
-        "license_id": dataset.get("license_id"),
-        "license_title": dataset.get("license_title"),
-        "url": dataset.get("url"),
+        "metadata_created": _optional_text(dataset.get("metadata_created"), "dataset creation timestamp"),
+        "metadata_modified": _optional_text(dataset.get("metadata_modified"), "dataset modification timestamp"),
+        "license_id": _optional_text(dataset.get("license_id"), "dataset license id"),
+        "license_title": _optional_text(dataset.get("license_title"), "dataset license title"),
+        "url": _optional_text(dataset.get("url"), "dataset URL"),
         "resources": resources,
         "source": "Tribunal Superior Eleitoral",
         "source_url": source_url,
