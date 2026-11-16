@@ -72,18 +72,31 @@ def normalize_dataset(dataset: dict[str, Any], *, source_url: str, extracted_at:
 
     resources = []
     for resource in collections["resources"] or []:
-        format_value = resource.get("format")
+        format_value = _optional_text(resource.get("format"), "resource format")
+        size_value = resource.get("size")
+        if (
+            size_value is not None
+            and (
+                isinstance(size_value, bool)
+                or not isinstance(size_value, int)
+                or size_value < 0
+            )
+        ):
+            raise ValueError("CKAN dataset resource size must be a non-negative integer or null")
+        datastore_active = resource.get("datastore_active")
+        if datastore_active is not None and not isinstance(datastore_active, bool):
+            raise ValueError("CKAN dataset resource datastore_active must be boolean or null")
         resources.append({
             "id": resource.get("id"),
             "name": resource.get("name"),
             "description": resource.get("description"),
-            "format": str(format_value).upper() if format_value else None,
+            "format": format_value.upper() if format_value else None,
             "url": resource.get("url"),
             "created": resource.get("created"),
             "last_modified": resource.get("last_modified"),
-            "size": resource.get("size"),
+            "size": size_value,
             "hash": resource.get("hash"),
-            "datastore_active": resource.get("datastore_active"),
+            "datastore_active": datastore_active,
             "mimetype": resource.get("mimetype"),
         })
     return {
