@@ -22,6 +22,10 @@ _MAX_BACKOFF = 300.0
 _MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 
 
+def _reject_non_finite_json_constant(value: str) -> None:
+    raise ValueError(f"Non-standard JSON numeric constant: {value}")
+
+
 def _is_finite_number(value: Any) -> bool:
     try:
         return math.isfinite(value)
@@ -113,7 +117,7 @@ class CKANClient:
                         raise CKANError(
                             f"CKAN response exceeds the {_MAX_RESPONSE_BYTES}-byte safety limit"
                         )
-                    payload = json.loads(body.decode("utf-8"))
+                    payload = json.loads(body.decode("utf-8"), parse_constant=_reject_non_finite_json_constant)
                 if not isinstance(payload, dict) or payload.get("success") is not True:
                     detail = payload.get("error", payload) if isinstance(payload, dict) else payload
                     raise CKANError(f"CKAN action {name!r} returned success=false: {detail}")
@@ -129,7 +133,7 @@ class CKANClient:
                         pass
                 if not retryable or attempt >= self.retries:
                     break
-            except (IncompleteRead, URLError, TimeoutError, OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            except (IncompleteRead, URLError, TimeoutError, OSError, ValueError, UnicodeDecodeError) as exc:
                 last_error = exc
                 if attempt >= self.retries:
                     break
