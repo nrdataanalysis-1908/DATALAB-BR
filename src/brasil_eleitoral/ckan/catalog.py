@@ -26,6 +26,22 @@ def _atomic_json(path: Path, payload: Any) -> None:
         except FileNotFoundError: pass
         raise
 
+_WINDOWS_RESERVED_BASENAMES = {
+    "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$",
+    *(f"COM{number}" for number in range(1, 10)),
+    *(f"LPT{number}" for number in range(1, 10)),
+    "COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³",
+}
+
+
+def _dataset_filename(name: str) -> str:
+    """Return a portable filename without Windows device-name aliases."""
+    basename = name.split(".", 1)[0].upper()
+    if basename in _WINDOWS_RESERVED_BASENAMES or name.endswith("."):
+        digest = hashlib.sha256(name.encode("utf-8")).hexdigest()[:16]
+        return f"_dataset_{digest}.json"
+    return f"{name}.json"
+
 def normalize_dataset(dataset: dict[str, Any], *, source_url: str, extracted_at: str) -> dict[str, Any]:
     if not isinstance(dataset, dict):
         raise ValueError("CKAN dataset must be an object")
@@ -160,7 +176,7 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
     verified_seen: dict[str, str] = {}
     checkpoint_incomplete = False
     for name, expected_digest in seen.items():
-        cached_path = output_dir / f"{name}.json"
+        cached_path = output_dir / _dataset_filename(name)
         if cached_path.is_symlink() or not cached_path.is_file():
             checkpoint_incomplete = True
             continue
@@ -232,7 +248,7 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
                 or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}", normalized["name"])
             ):
                 LOG.warning("Skipping unsafe CKAN dataset slug: %r", normalized["name"]); continue
-            target = output_dir / f"{normalized['name']}.json"
+            target = output_dir / _dataset_filename(normalized["name"])
             _atomic_json(target, normalized)
             seen[normalized["name"]] = hashlib.sha256(target.read_bytes()).hexdigest()
         start += len(results)
@@ -252,6 +268,6 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
         "api": f"{client.base_url}/api/3/action/", "action": "package_search",
         "discovered_at": datetime.now(timezone.utc).isoformat(), "dataset_count": len(seen),
         "remote_count": total, "complete": total is not None and len(seen) >= total,
-        "datasets": [{"name": name, "sha256": digest, "path": f"{name}.json"} for name, digest in sorted(seen.items())]}
+        "datasets": [{"name": name, "sha256": digest, "path": _dataset_filename(name)} for name, digest in sorted(seen.items())]}
     _atomic_json(output_dir / "manifest.json", manifest)
     return manifest
