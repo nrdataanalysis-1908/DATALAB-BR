@@ -209,7 +209,12 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
                 continue
             seen = {}
         total = remote_count
-        if not results: break
+        if not results:
+            if start < total:
+                raise ValueError(
+                    "CKAN returned an empty page before the reported total was reached"
+                )
+            break
         if start + len(results) > total:
             raise ValueError("CKAN page returned results beyond the reported total")
         for dataset in results:
