@@ -58,7 +58,9 @@ A plataforma diferencia explicitamente capacidades implementadas, integrações 
 ## Destaques técnicos
 
 - Cliente CKAN com paginação, timeout, retry/backoff e validação do envelope de resposta.
+  Em respostas HTTP transitórias, respeita `Retry-After` em segundos ou data HTTP, com limite global de espera e fallback exponencial quando o cabeçalho é inválido.
 - Manifesto de catálogo com hash SHA-256 e checkpoint para retomada da descoberta.
+  O checkpoint é vinculado ao endpoint CKAN e ao total remoto observado; mudanças de fonte ou de contagem reiniciam a paginação, e páginas não vazias subdimensionadas não encerram prematuramente a descoberta.
 - Downloader com streaming, retomada HTTP Range/ETag, checksum e escrita atômica.
 - Extração ZIP defensiva contra path traversal, arquivos especiais e pacotes excessivos.
 - Contratos versionados para tipos, nulabilidade, campos obrigatórios, valores permitidos e chaves.
