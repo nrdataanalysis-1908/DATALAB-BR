@@ -42,6 +42,12 @@ def _dataset_filename(name: str) -> str:
         return f"_dataset_{digest}.json"
     return f"{name}.json"
 
+def _optional_text(value: Any, field: str) -> str | None:
+    if value is not None and not isinstance(value, str):
+        raise ValueError(f"CKAN dataset {field} must be text or null")
+    return value
+
+
 def normalize_dataset(dataset: dict[str, Any], *, source_url: str, extracted_at: str) -> dict[str, Any]:
     if not isinstance(dataset, dict):
         raise ValueError("CKAN dataset must be an object")
@@ -88,11 +94,12 @@ def normalize_dataset(dataset: dict[str, Any], *, source_url: str, extracted_at:
         "organization": organization.get("title"),
         "organization_id": organization.get("id"),
         "groups": [
-            group.get("title") or group.get("name")
+            _optional_text(group.get("title"), "group title")
+            or _optional_text(group.get("name"), "group name")
             for group in collections["groups"] or []
         ],
         "tags": [
-            tag.get("name")
+            _optional_text(tag.get("name"), "tag name")
             for tag in collections["tags"] or []
         ],
         "metadata_created": dataset.get("metadata_created"),
