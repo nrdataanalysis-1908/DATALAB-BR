@@ -48,3 +48,4 @@ Os arquivos JSON são serializados em modo estrito. Valores numéricos não fini
 ## Tipos dos metadados de recursos
 
 Os campos textuais de cada recurso (`id`, `name`, `description`, `format`, `url`, `created`, `last_modified`, `hash` e `mimetype`) aceitam somente texto ou `null`. O tamanho deve ser um inteiro não negativo e `datastore_active` deve ser booleano ou `null`. Um recurso com tipo incompatível é ignorado como metadado malformado, sem interromper a descoberta dos demais conjuntos.
+Datas HTTP `Retry-After` que não possam ser representadas pelo relógio/plataforma também são tratadas como cabeçalhos inválidos. Nessa condição, o cliente utiliza o backoff exponencial limitado, em vez de interromper a recuperação com uma exceção de conversão temporal.
