@@ -44,3 +44,7 @@ A descoberta só publica um novo `manifest.json` quando a paginação alcança o
 Os nomes dos conjuntos são mantidos como identificadores lógicos no manifesto. Para gravação local, slugs que colidiriam com nomes de dispositivos do Windows (por exemplo, `CON`, `NUL`, `COM1` e `LPT1`) ou terminariam em ponto recebem um nome de arquivo determinístico derivado de SHA-256. O mesmo mapeamento é usado na verificação do checkpoint, na gravação e no manifesto.
 
 Os arquivos JSON são serializados em modo estrito. Valores numéricos não finitos (`NaN`, `Infinity` e `-Infinity`) são rejeitados, e campos textuais de grupos, tags e recursos passam por validação de tipo antes da normalização.
+
+## Tipos dos metadados de recursos
+
+Os campos textuais de cada recurso (`id`, `name`, `description`, `format`, `url`, `created`, `last_modified`, `hash` e `mimetype`) aceitam somente texto ou `null`. O tamanho deve ser um inteiro não negativo e `datastore_active` deve ser booleano ou `null`. Um recurso com tipo incompatível é ignorado como metadado malformado, sem interromper a descoberta dos demais conjuntos.
