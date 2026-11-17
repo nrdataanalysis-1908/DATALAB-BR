@@ -32,15 +32,24 @@ class CatalogResourceTextFieldTests(unittest.TestCase):
                     self.normalize(**{field: {"unexpected": "object"}})
 
     def test_rejects_non_text_resource_location_and_timestamp_fields(self):
-        for field in ("url", "created", "last_modified"):
+        expected_labels = {
+            "url": "resource URL",
+            "created": "resource creation timestamp",
+            "last_modified": "resource modification timestamp",
+        }
+        for field, expected_label in expected_labels.items():
             with self.subTest(field=field):
-                with self.assertRaisesRegex(ValueError, f"resource {field}"):
+                with self.assertRaisesRegex(ValueError, expected_label):
                     self.normalize(**{field: ["not", "text"]})
 
     def test_rejects_non_text_resource_hash_and_mimetype(self):
-        for field in ("hash", "mimetype"):
+        expected_labels = {
+            "hash": "resource hash",
+            "mimetype": "resource MIME type",
+        }
+        for field, expected_label in expected_labels.items():
             with self.subTest(field=field):
-                with self.assertRaisesRegex(ValueError, f"resource {field}"):
+                with self.assertRaisesRegex(ValueError, expected_label):
                     self.normalize(**{field: 123})
 
     def test_accepts_null_optional_resource_text_fields(self):
