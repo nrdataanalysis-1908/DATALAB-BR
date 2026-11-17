@@ -48,7 +48,10 @@ def _retry_after_seconds(error: HTTPError) -> float | None:
             return None
         if retry_at.tzinfo is None:
             retry_at = retry_at.replace(tzinfo=timezone.utc)
-        seconds = retry_at.timestamp() - time.time()
+        try:
+            seconds = retry_at.timestamp() - time.time()
+        except (OSError, OverflowError, ValueError):
+            return None
     if not math.isfinite(seconds):
         return None
     return min(max(seconds, 0.0), _MAX_BACKOFF)
