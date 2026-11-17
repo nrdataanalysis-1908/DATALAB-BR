@@ -64,7 +64,7 @@ def _validated_members(archive: zipfile.ZipFile, *, max_entries: int,
         if path.is_absolute():
             raise ExtractionError(f"Path traversal or non-canonical path: {name!r}")
         normalized = path.as_posix().rstrip("/")
-        normalized_key = normalized.casefold()
+        normalized_key = unicodedata.normalize("NFC", normalized).casefold()
         if normalized_key in seen:
             raise ExtractionError(f"Duplicate or case-insensitive archive path: {name!r}")
         seen.add(normalized_key)
