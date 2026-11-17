@@ -6,6 +6,7 @@ import os
 import shutil
 import stat
 import tempfile
+import unicodedata
 import zipfile
 from pathlib import Path, PurePosixPath
 
@@ -28,6 +29,10 @@ def _validate_portable_component(component: str, member_name: str) -> None:
         raise ExtractionError(f"Windows-incompatible trailing dot or space: {member_name!r}")
     if ":" in component:
         raise ExtractionError(f"Alternate data streams are not allowed: {member_name!r}")
+    if any(character in '<>"|?*' for character in component) or any(
+        unicodedata.category(character) == "Cc" for character in component
+    ):
+        raise ExtractionError(f"Windows-incompatible character in path: {member_name!r}")
     basename = component.split(".", 1)[0].upper()
     if basename in _WINDOWS_RESERVED_BASENAMES:
         raise ExtractionError(f"Reserved Windows device name: {member_name!r}")
