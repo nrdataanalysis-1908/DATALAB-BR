@@ -26,3 +26,7 @@ Extraction occurs in a temporary staging directory. The destination must not alr
 
 Windows path validation also rejects the reserved filename characters `<`, `>`, `"`, `|`, `?` and `*`, plus Unicode control-category characters in any path component. These names may be accepted by POSIX filesystems but cannot be represented consistently on Windows; rejection occurs before staging or publication.
 Collision detection applies Unicode NFC normalization before case folding. Composed and decomposed spellings of the same visible path are therefore treated as aliases and rejected before extraction, avoiding filesystem-dependent overwrites or failures on normalization-aware volumes.
+
+## Consistência de diretórios ZIP
+
+Entradas terminadas em `/` precisam representar diretórios e não podem carregar payload. Quando o cabeçalho Unix declara explicitamente arquivo regular ou diretório, esse tipo também precisa concordar com o nome da entrada. Inconsistências são rejeitadas antes da publicação do diretório de staging, evitando descarte silencioso de bytes ou interpretação ambígua do arquivo.
