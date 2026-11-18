@@ -72,8 +72,19 @@ def _validated_members(archive: zipfile.ZipFile, *, max_entries: int,
 
         mode = (info.external_attr >> 16) & 0xFFFF
         kind = stat.S_IFMT(mode)
+        is_directory = info.is_dir()
         if kind not in {0, stat.S_IFREG, stat.S_IFDIR}:
             raise ExtractionError(f"Links and special files are not allowed: {name!r}")
+        if (kind == stat.S_IFDIR and not is_directory) or (
+            kind == stat.S_IFREG and is_directory
+        ):
+            raise ExtractionError(
+                f"ZIP member type metadata does not match its path: {name!r}"
+            )
+        if is_directory and info.file_size != 0:
+            raise ExtractionError(
+                f"ZIP directory member must not contain file data: {name!r}"
+            )
         if info.flag_bits & 0x1:
             raise ExtractionError(f"Encrypted ZIP members are not supported: {name!r}")
         if info.file_size < 0 or info.file_size > max_file_size:
