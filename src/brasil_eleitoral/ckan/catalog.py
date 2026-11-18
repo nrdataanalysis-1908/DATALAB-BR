@@ -255,9 +255,11 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
                 LOG.warning("CKAN catalog shrank during pagination; restarting from offset zero")
                 start, seen = 0, {}
                 total = remote_count
+                filename_owners.clear()
                 catalog_restart_used = True
                 continue
             seen = {}
+            filename_owners.clear()
         total = remote_count
         if not results:
             if start < total:
