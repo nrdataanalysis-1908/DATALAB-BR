@@ -24,7 +24,7 @@ For portable extraction on Windows, every path component is also checked for alt
 
 Extraction occurs in a temporary staging directory. The destination must not already exist; a validated archive is published only after the complete extraction succeeds.
 
-Windows path validation also rejects the reserved filename characters `<`, `>`, `"`, `|`, `?` and `*`, plus Unicode control-category characters in any path component. These names may be accepted by POSIX filesystems but cannot be represented consistently on Windows; rejection occurs before staging or publication.
+Windows path validation also rejects the reserved filename characters `<`, `>`, `"`, `|`, `?` and `*`, plus Unicode control (`Cc`) and format (`Cf`) characters in any path component, including bidirectional overrides and zero-width formatting controls. These names may be accepted by POSIX filesystems but cannot be represented consistently on Windows; rejection occurs before staging or publication.
 Collision detection applies Unicode NFC normalization before case folding. Composed and decomposed spellings of the same visible path are therefore treated as aliases and rejected before extraction, avoiding filesystem-dependent overwrites or failures on normalization-aware volumes.
 
 ## Consistência de diretórios ZIP
