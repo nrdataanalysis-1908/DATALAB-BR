@@ -54,3 +54,6 @@ Respostas JSON excessivamente aninhadas que excedem o limite de recursão do dec
 ## Colisões de nomes portáveis
 
 Slugs distintos que resultem no mesmo nome após normalização NFC e comparação sem distinção de caixa não podem compartilhar um arquivo local. A descoberta preserva o primeiro recurso gravado, ignora o alias conflitante e mantém `manifest.json` com `complete: false`; isso evita sobrescrita silenciosa em volumes Windows e outros sistemas de arquivos case-insensitive. Checkpoints que já contenham aliases conflitantes são rejeitados para evitar retomadas ambíguas.
+
+
+O cliente também rejeita chaves duplicadas em qualquer objeto JSON da resposta CKAN, inclusive em estruturas aninhadas. Isso evita que valores ambíguos sejam aceitos conforme a política implícita de "última chave vence" de alguns decodificadores.
