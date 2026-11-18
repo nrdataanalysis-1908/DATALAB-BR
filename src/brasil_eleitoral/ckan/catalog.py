@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import tempfile
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -215,6 +216,17 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
         LOG.warning("Checkpoint references missing or changed datasets; restarting pagination")
         start = 0
     seen = verified_seen
+    filename_owners: dict[str, str] = {}
+    for existing_name in seen:
+        filename = _dataset_filename(existing_name)
+        filename_key = unicodedata.normalize("NFC", filename).casefold()
+        previous_owner = filename_owners.get(filename_key)
+        if previous_owner is not None and previous_owner != existing_name:
+            raise ValueError(
+                "Checkpoint contains dataset names that collide on portable filesystems"
+            )
+        filename_owners[filename_key] = existing_name
+
     extracted_at = datetime.now(timezone.utc).isoformat()
     # A completed checkpoint gets one remote probe so newly appended datasets are discovered.
     probe_completed_checkpoint = total is not None and start >= total
@@ -270,7 +282,17 @@ def discover_catalog(client: CKANClient, output_dir: Path, *, page_size: int = 1
                 or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}", normalized["name"])
             ):
                 LOG.warning("Skipping unsafe CKAN dataset slug: %r", normalized["name"]); continue
-            target = output_dir / _dataset_filename(normalized["name"])
+            filename = _dataset_filename(normalized["name"])
+            filename_key = unicodedata.normalize("NFC", filename).casefold()
+            previous_owner = filename_owners.get(filename_key)
+            if previous_owner is not None and previous_owner != normalized["name"]:
+                LOG.warning(
+                    "Skipping CKAN dataset %r because its portable filename collides with %r",
+                    normalized["name"], previous_owner,
+                )
+                continue
+            filename_owners[filename_key] = normalized["name"]
+            target = output_dir / filename
             _atomic_json(target, normalized)
             seen[normalized["name"]] = hashlib.sha256(target.read_bytes()).hexdigest()
         start += len(results)
