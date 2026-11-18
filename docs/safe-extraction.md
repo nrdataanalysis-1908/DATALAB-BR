@@ -1,6 +1,6 @@
 # Safe ZIP extraction
 
-Archives from public catalogs are treated as untrusted input. The extractor rejects path traversal, absolute/drive-qualified paths, backslash paths, duplicate paths, symlinks and special files, encrypted entries, excessive entry/file/total sizes, and suspicious compression ratios. It validates the ZIP CRC before extraction and writes into a temporary staging directory; only a fully extracted archive is atomically renamed into the requested destination.
+Archives from public catalogs are treated as untrusted input. The extractor rejects path traversal, absolute/drive-qualified paths, backslash paths, duplicate paths, symlinks and special files, encrypted entries, excessive entry/file/total sizes, and suspicious compression ratios. It validates each member CRC while streaming that member into a temporary staging directory, avoiding a second full decompression pass; only a fully extracted archive is atomically renamed into the requested destination.
 
 ```python
 from pathlib import Path
@@ -30,3 +30,8 @@ Collision detection applies Unicode NFC normalization before case folding. Compo
 ## Consistência de diretórios ZIP
 
 Entradas terminadas em `/` precisam representar diretórios e não podem carregar payload. Quando o cabeçalho Unix declara explicitamente arquivo regular ou diretório, esse tipo também precisa concordar com o nome da entrada. Inconsistências são rejeitadas antes da publicação do diretório de staging, evitando descarte silencioso de bytes ou interpretação ambígua do arquivo.
+
+
+## CRC e custo de descompressão
+
+Cada membro é lido até EOF uma única vez durante a cópia para staging. O próprio leitor ZIP verifica o CRC ao concluir a leitura; uma varredura `testzip()` separada seria redundante e duplicaria a descompressão de todos os arquivos. Uma divergência de CRC interrompe a extração e impede a publicação do destino.
