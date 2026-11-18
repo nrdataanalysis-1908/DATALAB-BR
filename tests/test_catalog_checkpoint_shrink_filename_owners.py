@@ -18,7 +18,7 @@ class CatalogShrinkFilenameOwnershipTests(unittest.TestCase):
             def search_page(self, *, start, rows):
                 self.calls.append((start, rows))
                 if start == 1:
-                    return {"count": 0, "results": []}
+                    return {"count": 1, "results": []}
                 return {
                     "count": 1,
                     "results": [{"name": "OLD-DATASET", "resources": []}],
@@ -32,7 +32,7 @@ class CatalogShrinkFilenameOwnershipTests(unittest.TestCase):
                 json.dumps({
                     "source_url": Client.base_url,
                     "next_start": 1,
-                    "total": 1,
+                    "total": 2,
                     "seen": {
                         "old-dataset": hashlib.sha256(previous).hexdigest()
                     },
