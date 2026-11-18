@@ -30,7 +30,7 @@ def _validate_portable_component(component: str, member_name: str) -> None:
     if ":" in component:
         raise ExtractionError(f"Alternate data streams are not allowed: {member_name!r}")
     if any(character in '<>"|?*' for character in component) or any(
-        unicodedata.category(character) == "Cc" for character in component
+        unicodedata.category(character) in {"Cc", "Cf"} for character in component
     ):
         raise ExtractionError(f"Windows-incompatible character in path: {member_name!r}")
     basename = component.split(".", 1)[0].upper()
