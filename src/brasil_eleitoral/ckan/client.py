@@ -26,6 +26,16 @@ def _reject_non_finite_json_constant(value: str) -> None:
     raise ValueError(f"Non-standard JSON numeric constant: {value}")
 
 
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object while rejecting ambiguous duplicate keys."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON object key: {key!r}")
+        result[key] = value
+    return result
+
+
 def _is_finite_number(value: Any) -> bool:
     try:
         return math.isfinite(value)
@@ -120,7 +130,11 @@ class CKANClient:
                         raise CKANError(
                             f"CKAN response exceeds the {_MAX_RESPONSE_BYTES}-byte safety limit"
                         )
-                    payload = json.loads(body.decode("utf-8"), parse_constant=_reject_non_finite_json_constant)
+                    payload = json.loads(
+                        body.decode("utf-8"),
+                        parse_constant=_reject_non_finite_json_constant,
+                        object_pairs_hook=_reject_duplicate_json_keys,
+                    )
                 if not isinstance(payload, dict) or payload.get("success") is not True:
                     detail = payload.get("error", payload) if isinstance(payload, dict) else payload
                     raise CKANError(f"CKAN action {name!r} returned success=false: {detail}")
