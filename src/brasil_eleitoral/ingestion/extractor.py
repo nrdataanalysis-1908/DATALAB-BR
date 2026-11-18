@@ -150,9 +150,9 @@ def extract_zip(
                 archive, max_entries=max_entries, max_file_size=max_file_size,
                 max_total_size=max_total_size, max_compression_ratio=max_compression_ratio,
             )
-            bad_member = archive.testzip()
-            if bad_member is not None:
-                raise ExtractionError(f"CRC validation failed for member: {bad_member}")
+            # Reading each member to EOF verifies its CRC in the same pass
+            # that writes it to staging; a separate testzip() pass would
+            # decompress every untrusted member twice.
             for info in members:
                 target = staging.joinpath(*PurePosixPath(info.filename).parts)
                 if info.is_dir():
