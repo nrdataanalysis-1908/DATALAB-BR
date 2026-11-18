@@ -6,6 +6,7 @@ import os
 import shutil
 import stat
 import tempfile
+import unicodedata
 import zipfile
 from pathlib import Path, PurePosixPath
 
@@ -28,6 +29,10 @@ def _validate_portable_component(component: str, member_name: str) -> None:
         raise ExtractionError(f"Windows-incompatible trailing dot or space: {member_name!r}")
     if ":" in component:
         raise ExtractionError(f"Alternate data streams are not allowed: {member_name!r}")
+    if any(character in '<>"|?*' for character in component) or any(
+        unicodedata.category(character) in {"Cc", "Cf"} for character in component
+    ):
+        raise ExtractionError(f"Windows-incompatible character in path: {member_name!r}")
     basename = component.split(".", 1)[0].upper()
     if basename in _WINDOWS_RESERVED_BASENAMES:
         raise ExtractionError(f"Reserved Windows device name: {member_name!r}")
@@ -59,7 +64,7 @@ def _validated_members(archive: zipfile.ZipFile, *, max_entries: int,
         if path.is_absolute():
             raise ExtractionError(f"Path traversal or non-canonical path: {name!r}")
         normalized = path.as_posix().rstrip("/")
-        normalized_key = normalized.casefold()
+        normalized_key = unicodedata.normalize("NFC", normalized).casefold()
         if normalized_key in seen:
             raise ExtractionError(f"Duplicate or case-insensitive archive path: {name!r}")
         seen.add(normalized_key)
@@ -67,8 +72,19 @@ def _validated_members(archive: zipfile.ZipFile, *, max_entries: int,
 
         mode = (info.external_attr >> 16) & 0xFFFF
         kind = stat.S_IFMT(mode)
+        is_directory = info.is_dir()
         if kind not in {0, stat.S_IFREG, stat.S_IFDIR}:
             raise ExtractionError(f"Links and special files are not allowed: {name!r}")
+        if (kind == stat.S_IFDIR and not is_directory) or (
+            kind == stat.S_IFREG and is_directory
+        ):
+            raise ExtractionError(
+                f"ZIP member type metadata does not match its path: {name!r}"
+            )
+        if is_directory and info.file_size != 0:
+            raise ExtractionError(
+                f"ZIP directory member must not contain file data: {name!r}"
+            )
         if info.flag_bits & 0x1:
             raise ExtractionError(f"Encrypted ZIP members are not supported: {name!r}")
         if info.file_size < 0 or info.file_size > max_file_size:
@@ -134,9 +150,9 @@ def extract_zip(
                 archive, max_entries=max_entries, max_file_size=max_file_size,
                 max_total_size=max_total_size, max_compression_ratio=max_compression_ratio,
             )
-            bad_member = archive.testzip()
-            if bad_member is not None:
-                raise ExtractionError(f"CRC validation failed for member: {bad_member}")
+            # Reading each member to EOF verifies its CRC in the same pass
+            # that writes it to staging; a separate testzip() pass would
+            # decompress every untrusted member twice.
             for info in members:
                 target = staging.joinpath(*PurePosixPath(info.filename).parts)
                 if info.is_dir():
